@@ -1,4 +1,4 @@
-
+package usuarios;
 public class Usuario {
     private int id;
     private String nombre;  
@@ -38,5 +38,9 @@ public class Usuario {
     }
     void actulizarDatos(){
         // Lógica para actualizar datos del usuario
+    }
+    public void crearEvento() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'crearEvento'");
     }
 }
