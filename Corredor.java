@@ -44,9 +44,17 @@ public class Corredor {
         this.contactoEmergencia = contactoEmergencia;
     }
 
-    //Metodos
-    @Override
-    public String toString() {
+    //Metodo para consultar los resultados del corredor
+    public void consultarResultados() {
+        // Lógica para consultar resultados
+        System.out.println("Consultando resultados del corredor...");
+    }
+
+    // Metodo para ver las inscripciones del corredor
+    public void verInscripciones() {
+        // Lógica para ver inscripciones
+        System.out.println("Viendo inscripciones del corredor...");
+    }
     
     
 }
