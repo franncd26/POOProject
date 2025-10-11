@@ -1,14 +1,12 @@
-package chats de mensajeria;
-
-public class MesajeriaDirecta extends Usuario {
+package chats;
+public class MesajeriaDirecta {
     // Atributos y métodos para la mensajería directa
     private int idConversacion;
-    private Usuarios.Usuario usuario1;
-    private Usuario.Usuario usuario2;
+    private usuarios.Usuario usuario1;
+    private usuarios.Usuario usuario2;
     private String[] mensajes; // Array para almacenar mensajes
 
-    public MesajeriaDirecta(int id, String nombre, String telefono, String correo, int idConversacion, usuarios.Usuario usuario1, usuarios.Usuario usuario2) {
-        super(id, nombre, telefono, correo);
+    public MesajeriaDirecta(int idConversacion, usuarios.Usuario usuario1, usuarios.Usuario usuario2) {
         this.idConversacion = idConversacion;
         this.usuario1 = usuario1;
         this.usuario2 = usuario2;
@@ -39,15 +37,9 @@ public class MesajeriaDirecta extends Usuario {
     public void setMensajes(String[] mensajes) {
         this.mensajes = mensajes;
     }
-    void enviarMensaje(String mensaje, Usuario.usuario remitente){ {
+    void enviarMensaje(String mensaje, usuarios.Usuario remitente){
         // Lógica para enviar un mensaje
-        if (index >= 0 && index < mensajes.length) {
-            mensajes[index] = mensaje;
         }
-
-    }
-
-}
     void recibirMensaje(){
         // Lógica para recibir un mensaje
     }

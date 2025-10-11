@@ -1,5 +1,5 @@
 package usuarios;
-public class Usuario {
+public abstract class Usuario {
     private int id;
     private String nombre;  
     private String telefono;

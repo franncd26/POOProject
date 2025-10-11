@@ -1,4 +1,4 @@
-package chats de mensajeria;
+package chats;
 
 public class ChatGeneral {
     private int idChat;
