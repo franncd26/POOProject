@@ -1,6 +1,6 @@
 class Main {
 	public static void main(String[] args) {
-		String mensaje = "Saprisa hijo de el Leon LDA";
+		String mensaje = "CR7, tronquito mayor";
 		System.out.println(mensaje);
 	}
 }
