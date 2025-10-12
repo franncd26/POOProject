@@ -1,5 +1,7 @@
 package usuarios;
 
+import java.util.Date;
+
 public class Usuario {
     private int id;
     private String nombre;
@@ -46,4 +48,9 @@ public class Usuario {
     }
 
     public void actualizarDatos() {}
+
+    public Date getFechaNacimiento() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getFechaNacimiento'");
+    }
 }
