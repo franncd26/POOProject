@@ -1,43 +1,59 @@
 package usuarios;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Evento {
+
+    public enum Estado { PROGRAMADA, EN_CURSO, FINALIZADA, CANCELADA }
+    public enum Tipo   { CALLE, TRAIL, PISTA } 
+
     private String nombre;
-    private String fecha;
-    private String ubicacion;
-    private Categoria categoria;
-    private int maxParticipantes;
-    private int participantesInscritos;
-    private boolean estado; // "abierto" o "cerrado"
-    private String resultados;
-    public Evento(String nombre, String fecha, String ubicacion, Categoria categoria ) {
+    private LocalDate fecha;            
+    private String descripcion;       
+    private Tipo tipo;                  
+    private Estado estado = Estado.PROGRAMADA;
+
+    private int maxParticipantes;      
+    private final List<Categoria> categorias = new ArrayList<>();
+    private final List<Inscripcion> inscripciones = new ArrayList<>();
+
+    public Evento(String nombre, LocalDate fecha, String descripcion, Tipo tipo) {
         this.nombre = nombre;
         this.fecha = fecha;
-        this.ubicacion = ubicacion;
-        this.categoria = categoria;    
+        this.descripcion = descripcion;
+        this.tipo = tipo;
     }
+    // Getters y Setters
     public String getNombre() {
         return nombre;
     }
     public void setNombre(String nombre) {
         this.nombre = nombre;
     }
-    public String getFecha() {
+    public LocalDate getFecha() {
         return fecha;
     }
-    public void setFecha(String fecha) {
+    public void setFecha(LocalDate fecha) {
         this.fecha = fecha;
     }
-    public String getUbicacion() {
-        return ubicacion;
+    public String getDescripcion() {
+        return descripcion;
     }
-    public void setUbicacion(String ubicacion) {
-        this.ubicacion = ubicacion;
+    public void setDescripcion(String descripcion) {
+        this.descripcion = descripcion;
     }
-    public Categoria getCategoria() {
-        return categoria;
+    public Tipo getTipo() {
+        return tipo;
     }
-    public void setCategoria(Categoria categoria) {
-        this.categoria = categoria;
+    public void setTipo(Tipo tipo) {
+        this.tipo = tipo;
+    }
+    public Estado getEstado() {
+        return estado;
+    }
+    public void setEstado(Estado estado) {
+        this.estado = estado;
     }
     public int getMaxParticipantes() {
         return maxParticipantes;
@@ -45,25 +61,14 @@ public class Evento {
     public void setMaxParticipantes(int maxParticipantes) {
         this.maxParticipantes = maxParticipantes;
     }
-    public int getParticipantesInscritos() {
-        return participantesInscritos;
+    public List<Categoria> getCategorias() {
+        return categorias;
     }
-    public void setParticipantesInscritos(int participantesInscritos) {
-        this.participantesInscritos = participantesInscritos;
-    }
-    public boolean isEstado() {
-        return estado;
-    }
-    public void setEstado(boolean estado) {
-        this.estado = estado;
-    }
-    public String getResultados() {
-        return resultados;
-    }
-    public void setResultados(String resultados) {
-        this.resultados = resultados;
+    public List<Inscripcion> getInscripciones() {
+        return inscripciones;
     }
 
+    
     public void generarResultadosGenerales() {
         // Lógica para generar resultados del evento
     }
@@ -76,6 +81,7 @@ public class Evento {
     public void abrirInscripciones() {
         // Lógica para abrir inscripciones del evento
     }
+    
 
 
 }
