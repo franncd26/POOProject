@@ -69,6 +69,93 @@ public class Evento {
         this.inscripciones = inscripciones;
     }
 
-    public void generarResultados() {}
-    public void generarResumen() {}
+    public void generarResultadosGenerales() {
+        if (inscripciones == null || inscripciones.isEmpty()) {
+            System.out.println(" No hay inscripciones registradas.");
+            return;
+        }
+
+        // Verificar que haya tiempos
+        boolean hayTiempos = false;
+        for (Inscripcion ins : inscripciones) {
+            if (ins != null && ins.getTiempo() != null) {
+                hayTiempos = true;
+                break;
+            }
+        }
+
+        if (!hayTiempos) {
+            System.out.println(" Ninguna inscripción tiene tiempo registrado.");
+            return;
+        }
+
+        // Ordenar por tiempo (menor a mayor)
+        for (int i = 0; i < inscripciones.size() - 1; i++) {
+            for (int j = i + 1; j < inscripciones.size(); j++) {
+                Inscripcion a = inscripciones.get(i);
+                Inscripcion b = inscripciones.get(j);
+
+                if (a == null || b == null || a.getTiempo() == null || b.getTiempo() == null) {
+                    continue;
+                }
+
+                if (a.getTiempo().getTiempoIndividual() > b.getTiempo().getTiempoIndividual()) {
+                    inscripciones.set(i, b);
+                    inscripciones.set(j, a);
+                }
+            }
+        }
+
+        // Asignar posición general
+        int posicion = 1;
+        for (Inscripcion ins : inscripciones) {
+            if (ins != null && ins.getTiempo() != null) {
+                ins.getTiempo().setPosicionGeneral(posicion);
+                posicion++;
+            }
+        }
+
+        System.out.println(" Resultados generales generados correctamente.");
+    }
+
+    public void generarResultadosPorCategoria() {
+        if (inscripciones == null || inscripciones.isEmpty()) {
+            System.out.println(" No hay inscripciones registradas.");
+            return;
+        }
+
+        // Recorrer cada distancia 
+        for (Inscripcion.Distancia distancia : Inscripcion.Distancia.values()) {
+            System.out.println(" Resultados para la distancia: " + distancia);
+            int posicion = 1;
+
+            // Ordenar por tiempo dentro de cada distancia
+            for (int i = 0; i < inscripciones.size() - 1; i++) {
+                for (int j = i + 1; j < inscripciones.size(); j++) {
+                    Inscripcion ins1 = inscripciones.get(i);
+                    Inscripcion ins2 = inscripciones.get(j);
+
+                    if (ins1 == null || ins2 == null) continue;
+                    if (ins1.getDistancia() != distancia || ins2.getDistancia() != distancia) continue;
+                    if (ins1.getTiempo() == null || ins2.getTiempo() == null) continue;
+
+                    if (ins1.getTiempo().getTiempoIndividual() > ins2.getTiempo().getTiempoIndividual()) {
+                        inscripciones.set(i, ins2);
+                        inscripciones.set(j, ins1);
+                    }
+                }
+            }
+
+            // Asignar posiciones dentro de cada distancia
+            for (Inscripcion ins : inscripciones) {
+                if (ins != null && ins.getDistancia() == distancia && ins.getTiempo() != null) {
+                    ins.getTiempo().setPosicionCategoria(posicion);
+                    posicion++;
+                }
+            }
+        }
+
+        System.out.println(" Resultados por categoría generados correctamente.");
+    }
+
 }
