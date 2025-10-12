@@ -1,6 +1,5 @@
 package usuarios;
-
-import java.util.Date;
+import java.util.Scanner;
 
 public class Usuario {
     private int id;
@@ -20,7 +19,9 @@ public class Usuario {
     }
 
     public void setId(int id) {
+    if (id > 0) {
         this.id = id;
+    }
     }
 
     public String getNombre() {
@@ -28,7 +29,9 @@ public class Usuario {
     }
 
     public void setNombre(String nombre) {
-        this.nombre = nombre;
+        if (nombre != null && !nombre.trim().isEmpty()) {
+            this.nombre = nombre;
+        }
     }
 
     public String getTelefono() {
@@ -36,7 +39,9 @@ public class Usuario {
     }
 
     public void setTelefono(String telefono) {
-        this.telefono = telefono;
+        if (telefono != null && !telefono.trim().isEmpty()) {
+            this.telefono = telefono;
+        }
     }
 
     public String getCorreo() {
@@ -44,13 +49,27 @@ public class Usuario {
     }
 
     public void setCorreo(String correo) {
-        this.correo = correo;
+        if (correo != null && correo.contains("@")) {
+            this.correo = correo;
+        }
     }
 
-    public void actualizarDatos() {}
+    @SuppressWarnings("resource")
+    public void actualizarDatos() {
+        // Lógica para actualizar datos del usuario
+        // Actulizacion de datos de un Usuario en consola
+        Scanner recibirDatos = new Scanner(System.in);
 
-    public Date getFechaNacimiento() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getFechaNacimiento'");
+        System.out.print("Nuevo nombre: ");
+        setNombre(recibirDatos.nextLine());
+
+        System.out.print("Nuevo teléfono: ");
+        setTelefono(recibirDatos.nextLine());
+
+        System.out.print("Nuevo correo: ");
+        setCorreo(recibirDatos.nextLine());
+
+        System.out.println("✅ Datos actualizados correctamente."); 
+
     }
 }
