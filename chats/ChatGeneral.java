@@ -1,43 +1,45 @@
 package chats;
 
-import java.util.ArrayList;
 import java.util.List;
+import usuarios.Usuario;
 
 public class ChatGeneral {
     private int idChat;
-    private final List<String> mensajes = new ArrayList<>();
-    private final List<usuarios.Usuario> participantes = new ArrayList<>();
+    private List<String> mensajes;
+    private List<Usuario> participantes;
 
-    public ChatGeneral(int idChat, usuarios.Usuario[] participantes) {
+    public ChatGeneral(int idChat, List<String> mensajes, List<Usuario> participantes) {
         this.idChat = idChat;
-        // Inicializa el array con un tamaño fijo
-
+        this.mensajes = mensajes;
+        this.participantes = participantes;
     }
-    // Getters y Setters
+
     public int getIdChat() {
         return idChat;
     }
+
     public void setIdChat(int idChat) {
         this.idChat = idChat;
     }
-    
+
     public List<String> getMensajes() {
         return mensajes;
     }
-    public List<usuarios.Usuario> getParticipantes() {
-        return participantes;
-    }
-    void enviarMensaje(String mensaje, usuarios.Usuario remitente){ 
-        // Lógica para enviar un mensaje
-    }
-    void recibirMensaje(){
-        // Lógica para recibir un mensaje
-    }
-    void agregarParticipante(usuarios.Usuario nuevoParticipante){
-        // Lógica para agregar un nuevo participante al chat
-    }
-    void eliminarParticipante(usuarios.Usuario participante){
-        // Lógica para eliminar un participante del chat
+
+    public void setMensajes(List<String> mensajes) {
+        this.mensajes = mensajes;
     }
 
+    public List<Usuario> getParticipantes() {
+        return participantes;
+    }
+
+    public void setParticipantes(List<Usuario> participantes) {
+        this.participantes = participantes;
+    }
+
+    public void enviarMensaje(String mensaje, Usuario remitente) {}
+    public void recibirMensajes() {}
+    public void agregarParticipante(Usuario usuario) {}
+    public void eliminarParticipante(Usuario usuario) {}
 }

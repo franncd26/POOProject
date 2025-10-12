@@ -1,41 +1,39 @@
-package usuarios;
+package eventos;
+
 public class Tiempo {
- 
-    private double tiempoIndividual; // Tiempo en segundos
+    private double tiempoIndividual;
     private int posicionGeneral;
     private int posicionCategoria;
 
-    // Constructor
     public Tiempo(double tiempoIndividual, int posicionGeneral, int posicionCategoria) {
         this.tiempoIndividual = tiempoIndividual;
         this.posicionGeneral = posicionGeneral;
         this.posicionCategoria = posicionCategoria;
     }
 
-    // Getters
     public double getTiempoIndividual() {
         return tiempoIndividual;
     }
+
+    public void setTiempoIndividual(double tiempoIndividual) {
+        this.tiempoIndividual = tiempoIndividual;
+    }
+
     public int getPosicionGeneral() {
         return posicionGeneral;
     }
+
+    public void setPosicionGeneral(int posicionGeneral) {
+        this.posicionGeneral = posicionGeneral;
+    }
+
     public int getPosicionCategoria() {
         return posicionCategoria;
     }
 
-    // Setters
-    public void setTiempoIndividual(double tiempoIndividual) {
-        this.tiempoIndividual = tiempoIndividual;
-    }
-    public void setPosicionGeneral(int posicionGeneral) {
-        this.posicionGeneral = posicionGeneral;
-    }
     public void setPosicionCategoria(int posicionCategoria) {
         this.posicionCategoria = posicionCategoria;
     }
 
-    // Metodo mostrarTiempo
-    public double getTiempo() {
-        return tiempoIndividual;
-    }
+    public double getTiempo() { return 0.0; }
 }

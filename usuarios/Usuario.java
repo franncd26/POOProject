@@ -1,7 +1,6 @@
 package usuarios;
 
-
-public abstract class Usuario {
+public class Usuario {
     private int id;
     private String nombre;
     private String telefono;
@@ -14,7 +13,6 @@ public abstract class Usuario {
         this.correo = correo;
     }
 
-    // Getters y Setters
     public int getId() {
         return id;
     }
@@ -47,9 +45,5 @@ public abstract class Usuario {
         this.correo = correo;
     }
 
-    public void actualizarDatos(String nombre, String telefono, String correo) {
-        this.nombre = nombre; this.telefono = telefono; this.correo = correo;
-    
-    }
-
+    public void actualizarDatos() {}
 }
