@@ -1,7 +1,9 @@
 package usuarios;
+
+
 public abstract class Usuario {
     private int id;
-    private String nombre;  
+    private String nombre;
     private String telefono;
     private String correo;
 
@@ -11,36 +13,42 @@ public abstract class Usuario {
         this.telefono = telefono;
         this.correo = correo;
     }
+
     // Getters y Setters
     public int getId() {
         return id;
     }
+
     public void setId(int id) {
         this.id = id;
     }
+
     public String getNombre() {
         return nombre;
     }
+
     public void setNombre(String nombre) {
         this.nombre = nombre;
     }
+
     public String getTelefono() {
         return telefono;
     }
+
     public void setTelefono(String telefono) {
         this.telefono = telefono;
     }
+
     public String getCorreo() {
         return correo;
     }
+
     public void setCorreo(String correo) {
         this.correo = correo;
     }
-    void actulizarDatos(){
+
+    public void actulizarDatos() {
         // Lógica para actualizar datos del usuario
     }
-    public void crearEvento() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'crearEvento'");
-    }
+
 }

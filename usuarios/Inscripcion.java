@@ -1,13 +1,16 @@
 package usuarios;
 
+
 public class Inscripcion {
+    public enum Distancia { CINCO_K, DIEZ_K, MEDIA_MARATON, MARATON }
+    public enum Talla { XS, S, M, L, XL, XXL }
 
     // =========================
     // Atributos (del diagrama)
     // =========================
     private int id;
-    private String distancia;       // Distancia: "5K", "10K", etc.
-    private String tallaCamiseta;   // Talla: "S", "M", "L", etc.
+    private Distancia distancia;       // Distancia: "5K", "10K", etc.
+    private Talla tallaCamiseta;   // Talla: "S", "M", "L", etc.
     private int numDorsal;          // Número de dorsal
     private String estado;          // Estado: "pendiente", "pagada", etc.
 
@@ -22,16 +25,11 @@ public class Inscripcion {
     // Constructores
     // =========================
 
-    public Inscripcion() {
-        // Constructor vacío (por compatibilidad con frameworks o inicializaciones)
-    }
 
     public Inscripcion(int id, String distancia, String tallaCamiseta,
                        int numDorsal, String estado,
                        Corredor corredor, Evento evento) {
         this.id = id;
-        this.distancia = distancia;
-        this.tallaCamiseta = tallaCamiseta;
         this.numDorsal = numDorsal;
         this.estado = estado;
         this.corredor = corredor;
@@ -45,6 +43,10 @@ public class Inscripcion {
     public void confirmarPago() {
         this.estado = "pagada";
     }
+    
+    public void gestionarInscripciones() {
+        // Constructor vacío (por compatibilidad con frameworks o inicializaciones)
+    }
 
     // =========================
     // Getters y Setters
@@ -52,12 +54,6 @@ public class Inscripcion {
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
-
-    public String getDistancia() { return distancia; }
-    public void setDistancia(String distancia) { this.distancia = distancia; }
-
-    public String getTallaCamiseta() { return tallaCamiseta; }
-    public void setTallaCamiseta(String tallaCamiseta) { this.tallaCamiseta = tallaCamiseta; }
 
     public int getNumDorsal() { return numDorsal; }
     public void setNumDorsal(int numDorsal) { this.numDorsal = numDorsal; }
@@ -73,4 +69,10 @@ public class Inscripcion {
 
     public Tiempo getTiempo() { return tiempo; }
     public void setTiempo(Tiempo tiempo) { this.tiempo = tiempo; }
+
+    public Distancia getDistancia() { return distancia; }
+    public void setDistancia(Distancia distancia) { this.distancia = distancia; }
+    
+    public Talla getTallaCamiseta() { return tallaCamiseta; }
+    public void setTallaCamiseta(Talla tallaCamiseta) { this.tallaCamiseta = tallaCamiseta; }
 }

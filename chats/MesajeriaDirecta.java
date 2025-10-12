@@ -1,16 +1,22 @@
 package chats;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public class MesajeriaDirecta {
     // Atributos y métodos para la mensajería directa
     private int idConversacion;
     private usuarios.Usuario usuario1;
     private usuarios.Usuario usuario2;
-    private String[] mensajes; // Array para almacenar mensajes
+    private final List<String> mensajes = new ArrayList<>();
+    private final List<usuarios.Usuario> participantes = new ArrayList<>();
 
     public MesajeriaDirecta(int idConversacion, usuarios.Usuario usuario1, usuarios.Usuario usuario2) {
         this.idConversacion = idConversacion;
         this.usuario1 = usuario1;
         this.usuario2 = usuario2;
-        this.mensajes = new String[100]; // Inicializa el array con un tamaño fijo
+        
+        // Inicializa el array con un tamaño fijo
     }
     // Getters y Setters
     public int getIdConversacion() {
@@ -31,12 +37,15 @@ public class MesajeriaDirecta {
     public void setUsuario2(usuarios.Usuario usuario2) {
         this.usuario2 = usuario2;
     }
-    public String[] getMensajes() {
+    public List<String> getMensajes() {
         return mensajes;
     }
-    public void setMensajes(String[] mensajes) {
-        this.mensajes = mensajes;
+    public List<usuarios.Usuario> getParticipantes() {
+        return participantes;
     }
+
+    
+   
     void enviarMensaje(String mensaje, usuarios.Usuario remitente){
         // Lógica para enviar un mensaje
         }

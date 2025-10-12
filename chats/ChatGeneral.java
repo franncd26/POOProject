@@ -1,14 +1,17 @@
 package chats;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ChatGeneral {
     private int idChat;
-    private String [] mensajes; // Array para almacenar mensajes
-    private usuarios.Usuario[] participantes; // Array para almacenar participantes
+    private final List<String> mensajes = new ArrayList<>();
+    private final List<usuarios.Usuario> participantes = new ArrayList<>();
 
     public ChatGeneral(int idChat, usuarios.Usuario[] participantes) {
         this.idChat = idChat;
-        this.participantes = participantes;
-        this.mensajes = new String[100]; // Inicializa el array con un tamaño fijo
+        // Inicializa el array con un tamaño fijo
+
     }
     // Getters y Setters
     public int getIdChat() {
@@ -17,17 +20,12 @@ public class ChatGeneral {
     public void setIdChat(int idChat) {
         this.idChat = idChat;
     }
-    public String[] getMensajes() {
+    
+    public List<String> getMensajes() {
         return mensajes;
     }
-    public void setMensajes(String[] mensajes) {
-        this.mensajes = mensajes;
-    }
-    public usuarios.Usuario[] getParticipantes() {
+    public List<usuarios.Usuario> getParticipantes() {
         return participantes;
-    }
-    public void setParticipantes(usuarios.Usuario[] participantes) {
-        this.participantes = participantes;
     }
     void enviarMensaje(String mensaje, usuarios.Usuario remitente){ 
         // Lógica para enviar un mensaje

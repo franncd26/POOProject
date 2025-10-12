@@ -1,16 +1,16 @@
 package usuarios;
 import java.time.LocalDate;
 
-public class Corredor extends Usuario {
 
-    // Atributos
+public class Corredor extends Usuario {
     private LocalDate fechaNacimiento;
     private char sexo;
     private String tipoSangre;
     private String contactoEmergencia;
 
-    // Constructor
-    public Corredor(int id, String nombre, String telefono,String correo, LocalDate fechaNacimiento, char sexo, String tipoSangre, String contactoEmergencia) {
+    public Corredor(int id, String nombre, String telefono, String correo,
+                    LocalDate fechaNacimiento, char sexo,
+                    String tipoSangre, String contactoEmergencia) {
         super(id, nombre, telefono, correo);
         this.fechaNacimiento = fechaNacimiento;
         this.sexo = sexo;
