@@ -1,7 +1,6 @@
 package usuarios;
 import java.time.LocalDate;
 
-
 public class Corredor extends Usuario {
     private LocalDate fechaNacimiento;
     private char sexo;

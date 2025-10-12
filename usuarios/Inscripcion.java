@@ -1,78 +1,46 @@
 package usuarios;
 
-
 public class Inscripcion {
+
+    // Enums ANIDADOS (públicos para usarlos desde afuera)
     public enum Distancia { CINCO_K, DIEZ_K, MEDIA_MARATON, MARATON }
     public enum Talla { XS, S, M, L, XL, XXL }
 
-    // =========================
-    // Atributos (del diagrama)
-    // =========================
     private int id;
-    private Distancia distancia;       // Distancia: "5K", "10K", etc.
-    private Talla tallaCamiseta;   // Talla: "S", "M", "L", etc.
-    private int numDorsal;          // Número de dorsal
-    private String estado;          // Estado: "pendiente", "pagada", etc.
+    private Distancia distancia;
+    private Talla tallaCamiseta;
+    private int numeroDorsal;
+    private String estado;
 
-    // =========================
-    // Asociaciones
-    // =========================
-    private Corredor corredor;      // 1 corredor por inscripción
-    private Evento evento;          // 1 evento por inscripción
-    private Tiempo tiempo;          // 0..1 tiempo asociado (puede ser null)
+    // Relaciones
+    private Corredor corredor; // 0..1
+    private Evento evento;     // 1
 
-    // =========================
-    // Constructores
-    // =========================
-
-
-    public Inscripcion(int id, String distancia, String tallaCamiseta,
-                       int numDorsal, String estado,
-                       Corredor corredor, Evento evento) {
+    // ⬇⬇⬇ FIRMA QUE DEBE MATCH CON TU NEW Inscripcion(...) ⬇⬇⬇
+    public Inscripcion(int id,
+                       Distancia distancia,
+                       Talla tallaCamiseta,
+                       int numeroDorsal,
+                       String estado,
+                       Corredor corredor,
+                       Evento evento) {
         this.id = id;
-        this.numDorsal = numDorsal;
+        this.distancia = distancia;
+        this.tallaCamiseta = tallaCamiseta;
+        this.numeroDorsal = numeroDorsal;
         this.estado = estado;
         this.corredor = corredor;
         this.evento = evento;
     }
 
-    // =========================
-    // Métodos del diagrama
-    // =========================
-
-    public void confirmarPago() {
-        this.estado = "pagada";
-    }
-    
-    public void gestionarInscripciones() {
-        // Constructor vacío (por compatibilidad con frameworks o inicializaciones)
-    }
-
-    // =========================
-    // Getters y Setters
-    // =========================
-
+    // Getters/Setters mínimos (si los necesitas)
     public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
-
-    public int getNumDorsal() { return numDorsal; }
-    public void setNumDorsal(int numDorsal) { this.numDorsal = numDorsal; }
-
-    public String getEstado() { return estado; }
-    public void setEstado(String estado) { this.estado = estado; }
-
-    public Corredor getCorredor() { return corredor; }
-    public void setCorredor(Corredor corredor) { this.corredor = corredor; }
-
-    public Evento getEvento() { return evento; }
-    public void setEvento(Evento evento) { this.evento = evento; }
-
-    public Tiempo getTiempo() { return tiempo; }
-    public void setTiempo(Tiempo tiempo) { this.tiempo = tiempo; }
-
     public Distancia getDistancia() { return distancia; }
-    public void setDistancia(Distancia distancia) { this.distancia = distancia; }
-    
     public Talla getTallaCamiseta() { return tallaCamiseta; }
-    public void setTallaCamiseta(Talla tallaCamiseta) { this.tallaCamiseta = tallaCamiseta; }
+    public int getNumeroDorsal() { return numeroDorsal; }
+    public String getEstado() { return estado; }
+    public Corredor getCorredor() { return corredor; }
+    public Evento getEvento() { return evento; }
+
+    public void confirmarPago() { this.estado = "PAGADA"; }
 }

@@ -47,8 +47,9 @@ public abstract class Usuario {
         this.correo = correo;
     }
 
-    public void actulizarDatos() {
-        // Lógica para actualizar datos del usuario
+    public void actualizarDatos(String nombre, String telefono, String correo) {
+        this.nombre = nombre; this.telefono = telefono; this.correo = correo;
+    
     }
 
 }

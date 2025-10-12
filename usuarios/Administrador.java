@@ -17,7 +17,7 @@ public class Administrador extends Usuario {
         // Lógica para crear un evento
     }
     
-    public void getionarInscripciones() {
+    public void gestionarInscripciones() {
         // Lógica para eliminar un evento
     }
    
