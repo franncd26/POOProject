@@ -95,7 +95,8 @@ public class Tiempo {
      * - Si el tiempo aún no está registrado, se debe manejar (p.ej., devolver null/Optional o
      *   documentar el comportamiento en el proyecto; nunca retornar un 0.0 “falso”).
      */
-    public double getTiempo() { 
-        return 0.0; 
+    public double getTiempo() {
+        return this.tiempoIndividual;
     }
+
 }

@@ -65,6 +65,7 @@ public class Evento {
         return inscripciones;
     }
 
+    @Deprecated
     public void setInscripciones(List<Inscripcion> inscripciones) {
         this.inscripciones = inscripciones;
     }
@@ -92,7 +93,7 @@ public class Evento {
             inscripcion.setEvento(this);
         }
     }
-    
+
     public void generarResultadosGenerales() {
         if (inscripciones == null || inscripciones.isEmpty()) {
             System.out.println(" No hay inscripciones registradas.");
