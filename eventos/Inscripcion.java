@@ -14,10 +14,12 @@
  *  - confirmarPago(): transición válida de estado (PENDIENTE → PAGADO), evitando doble pago y validando datos.
  */
 package eventos;
+
 // Importaciones necesarias
 import usuarios.Corredor;
 
 public class Inscripcion {
+
     // Enums para distancia y talla de camiseta
     public enum Distancia { CINCO_K, DIEZ_K, VEINTIUNO_K, TREINTA_Y_DOS_K, CUARENTA_Y_DOS_K }
     public enum Talla { XS, S, M, L, XL }
@@ -31,6 +33,48 @@ public class Inscripcion {
     private Corredor corredor;
     private Evento evento;
     private Tiempo tiempo;
+
+
+    // Estados validos
+    public static final String ESTADO_PENDIENTE = "PENDIENTE";
+    public static final String ESTADO_PAGADO    = "PAGADO";
+    public static final String ESTADO_CANCELADO = "CANCELADO";
+
+    // --- Relaciones con Corredor, Evento y Tiempo ---
+
+    public Corredor getCorredor() {
+        return corredor;
+    }
+
+    public void setCorredor(Corredor corredor) {
+        this.corredor = corredor;
+    }
+
+    public Evento getEvento() {
+        return evento;
+    }
+
+    public void setEvento(Evento evento) {
+        this.evento = evento;
+    }
+
+    public Tiempo getTiempo() {
+        return tiempo;
+    }
+
+    /** Mantiene coherencia con Tiempo (relación bidireccional). */
+    public void setTiempo(Tiempo tiempo) {
+        this.tiempo = tiempo;
+
+        if (tiempo != null) {
+            if (tiempo.getInscripcion() != this) {
+                tiempo.setInscripcion(this);
+            }
+            if (this.evento != null && tiempo.getEvento() != this.evento) {
+                tiempo.setEvento(this.evento);
+            }
+        }
+    }
 
     // Constructor
     public Inscripcion(int id, Distancia distancia, Talla tallaCamiseta, int numeroDorsal,
@@ -86,30 +130,6 @@ public class Inscripcion {
         this.estado = estado;
     }
 
-    public Corredor getCorredor() {
-        return corredor;
-    }
-
-    public void setCorredor(Corredor corredor) {
-        this.corredor = corredor;
-    }
-
-    public Evento getEvento() {
-        return evento;
-    }
-
-    public void setEvento(Evento evento) {
-        this.evento = evento;
-    }
-
-    public Tiempo getTiempo() {
-        return tiempo;
-    }
-
-    public void setTiempo(Tiempo tiempo) {
-        this.tiempo = tiempo;
-    }
-
     // Métodos de Inscripcion
     /**
      * Confirma el pago de la inscripción.
@@ -118,5 +138,32 @@ public class Inscripcion {
      *  - Si ya está PAGADO, no vuelve a confirmar y devuelve/lanza un mensaje/estado informativo.
      *  - Si todo es válido, cambia el estado a PAGADO.
      */
-    public void confirmarPago() {}
+    public void confirmarPago() {
+    // Validaciones obligatorias
+    if (corredor == null || evento == null) {
+        throw new IllegalStateException("Inscripción sin corredor o evento asignado.");
+    }
+    if (distancia == null || tallaCamiseta == null) {
+        throw new IllegalStateException("Distancia y talla de camiseta son obligatorias.");
+    }
+    if (numeroDorsal <= 0) {
+        throw new IllegalStateException("El número de dorsal debe ser mayor a 0.");
+    }
+
+    // Normalizamos estado actual (si estaba seteado)
+    String estadoActual = (estado == null) ? "" : estado.trim().toUpperCase();
+
+    // Casos no permitidos o idempotentes
+    if (ESTADO_PAGADO.equals(estadoActual)) {
+        // Ya estaba pagada: operación idempotente; no hacemos nada.
+        return;
+    }
+    if (ESTADO_CANCELADO.equals(estadoActual)) {
+        throw new IllegalStateException("No se puede confirmar pago de una inscripción cancelada.");
+    }
+
+    // Transición válida: PENDIENTE -> PAGADO (o estado vacío -> PAGADO)
+    this.estado = ESTADO_PAGADO;
+}
+
 }

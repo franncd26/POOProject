@@ -21,12 +21,24 @@ public class Tiempo {
     private int posicionGeneral;
     private int posicionCategoria;
 
-    // Constructor
-    public Tiempo(double tiempoIndividual, int posicionGeneral, int posicionCategoria) {
+    // Relaciones con Inscripcion, Evento y Categoria
+    private Inscripcion inscripcion;
+    private Evento evento;
+    private Categoria categoria;
+
+    // Constructor principal con relaciones
+    public Tiempo(double tiempoIndividual, int posicionGeneral, int posicionCategoria,
+                  Inscripcion inscripcion, Evento evento, Categoria categoria) {
         this.tiempoIndividual = tiempoIndividual;
         this.posicionGeneral = posicionGeneral;
         this.posicionCategoria = posicionCategoria;
+        this.inscripcion = inscripcion;
+        this.evento = evento;
+        this.categoria = categoria;
     }
+
+    // Constructor vacío (para hacer pruebas, frameworks, etc.)
+    public Tiempo() {}
 
     // Getters y Setters
     public double getTiempoIndividual() {
@@ -53,11 +65,37 @@ public class Tiempo {
         this.posicionCategoria = posicionCategoria;
     }
 
+    public Inscripcion getInscripcion() {
+        return inscripcion;
+    }
+
+    public void setInscripcion(Inscripcion inscripcion) {
+        this.inscripcion = inscripcion;
+    }
+
+    public Evento getEvento() {
+        return evento;
+    }
+
+    public void setEvento(Evento evento) {
+        this.evento = evento;
+    }
+
+    public Categoria getCategoria() {
+        return categoria;
+    }
+
+    public void setCategoria(Categoria categoria) {
+        this.categoria = categoria;
+    }
+
     // Métodos específicos de Tiempo
     /**
      * Devuelve el tiempo registrado para la inscripción.
      * - Si el tiempo aún no está registrado, se debe manejar (p.ej., devolver null/Optional o
      *   documentar el comportamiento en el proyecto; nunca retornar un 0.0 “falso”).
      */
-    public double getTiempo() { return 0.0; }
+    public double getTiempo() { 
+        return 0.0; 
+    }
 }

@@ -16,6 +16,8 @@
 
 package usuarios;
 // Importaciones necesarias
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import eventos.Inscripcion;
@@ -26,20 +28,54 @@ public class Corredor extends Usuario {
     private char sexo;
     private String tipoSangre;
     private String contactoEmergencia;
-    private List<Inscripcion> inscripciones;
+
+    private final List<Inscripcion> inscripciones = new ArrayList<>();
+
+    public List<Inscripcion> getInscripciones() {
+        return Collections.unmodifiableList(inscripciones);
+    }
+
+    public void agregarInscripcion(Inscripcion inscripcion) {
+    if (inscripcion == null) return;
+
+    // 1) No permitir dos inscripciones del MISMO corredor al MISMO evento
+    for (Inscripcion i : inscripciones) {
+        if (i.getEvento() != null && inscripcion.getEvento() != null && i.getEvento() == inscripcion.getEvento()) {
+            throw new IllegalStateException("El corredor ya tiene una inscripción para este evento.");
+        }
+    }
+
+    // 2) Agregar si no estaba aún
+    if (!inscripciones.contains(inscripcion)) {
+        inscripciones.add(inscripcion);
+    }
+
+    // 3) Mantener relación inversa coherente
+    if (inscripcion.getCorredor() != this) {
+        inscripcion.setCorredor(this);
+    }
+}
+
+
+    public void eliminarInscripcion(Inscripcion inscripcion) {
+        if (inscripcion == null) return;
+        inscripciones.remove(inscripcion);
+        if (inscripcion.getCorredor() == this) {
+            inscripcion.setCorredor(null);
+        }
+    }
 
     // Constructor
     public Corredor(int id, String nombre, String telefono, String correo, Date fechaNacimiento,
-                    char sexo, String tipoSangre, String contactoEmergencia, List<Inscripcion> inscripciones) {
+                    char sexo, String tipoSangre, String contactoEmergencia) {
         super(id, nombre, telefono, correo);
         this.fechaNacimiento = fechaNacimiento;
         this.sexo = sexo;
         this.tipoSangre = tipoSangre;
         this.contactoEmergencia = contactoEmergencia;
-        this.inscripciones = inscripciones;
     }
     // Getters y Setters
-    @Override
+
     public Date getFechaNacimiento() {
         return fechaNacimiento;
     }
@@ -72,14 +108,6 @@ public class Corredor extends Usuario {
         this.contactoEmergencia = contactoEmergencia;
     }
 
-    public List<Inscripcion> getInscripciones() {
-        return inscripciones;
-    }
-
-    public void setInscripciones(List<Inscripcion> inscripciones) {
-        this.inscripciones = inscripciones;
-    }
-
     // Métodos específicos de Corredor
     /**
      * Muestra los resultados del corredor por inscripción:
@@ -87,7 +115,6 @@ public class Corredor extends Usuario {
      *  - Si no existe Tiempo, se informa explícitamente que no hay registro.
      */
     public void consultarResultados() {}
-    
     
     /**
     * Lista las inscripciones del corredor. Si no tiene, debe informar un mensaje claro.
