@@ -69,6 +69,30 @@ public class Evento {
         this.inscripciones = inscripciones;
     }
 
+    public void agregarInscripcion(Inscripcion inscripcion) {
+        if (inscripcion == null) return;
+
+        // Inicializar la lista si vino nula por constructor/setter
+        if (this.inscripciones == null) {
+            this.inscripciones = new java.util.ArrayList<>();
+        }
+
+        // Validar dorsal único dentro de este evento
+        for (Inscripcion i : this.inscripciones) {
+            if (i != null && i.getNumeroDorsal() == inscripcion.getNumeroDorsal()) {
+                throw new IllegalStateException(
+                    "El número de dorsal " + inscripcion.getNumeroDorsal() + " ya está asignado en este evento."
+                );
+            }
+        }
+
+        // Agregar y mantener relación bidireccional
+        this.inscripciones.add(inscripcion);
+        if (inscripcion.getEvento() != this) {
+            inscripcion.setEvento(this);
+        }
+    }
+    
     public void generarResultadosGenerales() {
         if (inscripciones == null || inscripciones.isEmpty()) {
             System.out.println(" No hay inscripciones registradas.");
