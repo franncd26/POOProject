@@ -1,7 +1,8 @@
+import chats.ChatGeneral;
 import usuarios.Usuario;
-
 import java.util.List;
 import java.util.Scanner;
+
 public class Main {
     // Un único Scanner (no lo cierres)
     private static final Scanner SC = new Scanner(System.in);
