@@ -19,7 +19,6 @@ package eventos;
 import usuarios.Corredor;
 
 public class Inscripcion {
-
     // Enums para distancia y talla de camiseta
     public enum Distancia { CINCO_K, DIEZ_K, VEINTIUNO_K, TREINTA_Y_DOS_K, CUARENTA_Y_DOS_K }
     public enum Talla { XS, S, M, L, XL }
@@ -34,13 +33,12 @@ public class Inscripcion {
     private Evento evento;
     private Tiempo tiempo;
 
-
-    // Estados validos
+    // Estados válidos de la inscripción 
     public static final String ESTADO_PENDIENTE = "PENDIENTE";
     public static final String ESTADO_PAGADO    = "PAGADO";
     public static final String ESTADO_CANCELADO = "CANCELADO";
 
-    // --- Relaciones con Corredor, Evento y Tiempo ---
+    // Relaciones con Corredor, Evento y Tiempo 
 
     public Corredor getCorredor() {
         return corredor;
@@ -135,35 +133,37 @@ public class Inscripcion {
      * Confirma el pago de la inscripción.
      * Reglas:
      *  - Requiere: corredor y evento asignados; distancia y talla definidos; numeroDorsal válido.
-     *  - Si ya está PAGADO, no vuelve a confirmar y devuelve/lanza un mensaje/estado informativo.
+     *  - Si ya está PAGADO, no vuelve a confirmar (idempotente).
+     *  - Si está CANCELADO, no permite confirmar.
      *  - Si todo es válido, cambia el estado a PAGADO.
      */
     public void confirmarPago() {
-    // Validaciones obligatorias
-    if (corredor == null || evento == null) {
-        throw new IllegalStateException("Inscripción sin corredor o evento asignado.");
-    }
-    if (distancia == null || tallaCamiseta == null) {
-        throw new IllegalStateException("Distancia y talla de camiseta son obligatorias.");
-    }
-    if (numeroDorsal <= 0) {
-        throw new IllegalStateException("El número de dorsal debe ser mayor a 0.");
-    }
+        // Validaciones mínimas obligatorias (invariantes previas al pago)
+        if (corredor == null || evento == null) {
+            throw new IllegalStateException("Inscripción sin corredor o evento asignado.");
+        }
+        if (distancia == null || tallaCamiseta == null) {
+            throw new IllegalStateException("Distancia y talla de camiseta son obligatorias.");
+        }
+        if (numeroDorsal <= 0) {
+            throw new IllegalStateException("El número de dorsal debe ser mayor a 0.");
+        }
 
-    // Normalizamos estado actual (si estaba seteado)
-    String estadoActual = (estado == null) ? "" : estado.trim().toUpperCase();
+        // Normalizar estado actual
+        String estadoActual = (estado == null || estado.isBlank())
+                ? ESTADO_PENDIENTE
+                : estado.trim().toUpperCase();
 
-    // Casos no permitidos o idempotentes
-    if (ESTADO_PAGADO.equals(estadoActual)) {
-        // Ya estaba pagada: operación idempotente; no hacemos nada.
-        return;
+        // Casos no permitidos / idempotencia
+        if (ESTADO_PAGADO.equals(estadoActual)) {
+            // Ya estaba pagada: operación idempotente (no hace nada)
+            return;
+        }
+        if (ESTADO_CANCELADO.equals(estadoActual)) {
+            throw new IllegalStateException("No se puede confirmar el pago de una inscripción cancelada.");
+        }
+
+        // Transición válida: (PENDIENTE o vacío) -> PAGADO
+        this.estado = ESTADO_PAGADO;
     }
-    if (ESTADO_CANCELADO.equals(estadoActual)) {
-        throw new IllegalStateException("No se puede confirmar pago de una inscripción cancelada.");
-    }
-
-    // Transición válida: PENDIENTE -> PAGADO (o estado vacío -> PAGADO)
-    this.estado = ESTADO_PAGADO;
-}
-
 }
