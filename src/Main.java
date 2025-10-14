@@ -1,104 +1,117 @@
+import usuarios.Usuario;
 
-
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import chats.*;
-import usuarios.*;
-import eventos.*;
-
+import java.util.Scanner;
 public class Main {
+    // Un único Scanner (no lo cierres)
+    private static final Scanner SC = new Scanner(System.in);
+    private static Usuario usuarioActual = null;
+
     public static void main(String[] args) {
-        // === Crear Categorías ===
-        Categoria catJuvenil = new Categoria("Juvenil", 15, 25);
-        Categoria catAdulto = new Categoria("Adulto", 26, 40);
-        List<Categoria> categorias = new ArrayList<>();
-        categorias.add(catJuvenil);
-        categorias.add(catAdulto);
+        // 1) Login simple: cédula + nombre (una sola vez)
+        System.out.println("=== Inicio de sesión (Chat General) ===");
+        int cedula = leerEntero("Cédula (solo números): ");
+        System.out.print("Nombre: ");
+        String nombre = SC.nextLine();
 
-        // === Crear Evento ===
-        Evento evento = new Evento(
-                "Maratón San José",
-                new Date(),
-                "Carrera urbana de 10 km y 21 km",
-                "Activo",
-                categorias,
-                new ArrayList<>()
-        );
+        // Crear el usuario actual (correo/telefono temporales para no pedir más datos)
+        String correoTemp = (nombre == null || nombre.isBlank())
+                ? ("user" + cedula + "@temp.local")
+                : (nombre.trim().toLowerCase().replace(" ", ".") + "@temp.local");
+        usuarioActual = new Usuario(cedula, nombre, "", correoTemp);
 
-        // === Crear Tiempo (vacío por ahora) ===
-        Tiempo tiempo = new Tiempo(0.0, 0, 0);
+        // 2) Crear el Chat General y agregar al usuario actual
+        ChatGeneral chat = new ChatGeneral(101);
+        chat.agregarParticipante(usuarioActual);
 
-        // === Crear Corredor ===
-        Corredor corredor = new Corredor(
-                1001,
-                "Ana López",
-                "8888-8888",
-                "ana@correo.com",
-                new Date(2000 , 5, 15), // año base 1900
-                'F',
-                "O+",
-                "Carlos López",
-                new ArrayList<>()
-        );
+        // 3) Menú del Chat General (solo chat)
+        boolean salir = false;
+        while (!salir) {
+            System.out.println("\n=== CHAT GENERAL (ID " + chat.getIdChat() + ") ===");
+            System.out.println("1) Enviar mensaje (como " + usuarioActual.getNombre() + ")");
+            System.out.println("2) Ver mensajes");
+            System.out.println("3) Agregar participante (cédula + nombre)");
+            System.out.println("4) Eliminar participante por cédula");
+            System.out.println("5) Ver participantes");
+            System.out.println("0) Salir");
+            System.out.print("Opción: ");
+            String opc = SC.nextLine().trim();
 
-        // === Crear Inscripción ===
-        Inscripcion inscripcion = new Inscripcion(
-                9001,
-                Inscripcion.Distancia.DIEZ_K,
-                Inscripcion.Talla.M,
-                210,
-                "PENDIENTE",
-                corredor,
-                evento,
-                tiempo
-        );
+            switch (opc) {
+                case "1":
+                    System.out.print("Escribe tu mensaje: ");
+                    String texto = SC.nextLine();
+                    chat.enviarMensaje(texto, usuarioActual);
+                    break;
 
-        // Agregar inscripción al evento y al corredor
-        evento.getInscripciones().add(inscripcion);
-        corredor.getInscripciones().add(inscripcion);
+                case "2":
+                    chat.recibirMensajes();
+                    break;
 
-        // === Crear Administrador ===
-        Administrador admin = new Administrador(
-                1,
-                "Pedro Gómez",
-                "7777-7777",
-                "admin@correo.com",
-                "Administrador General"
-        );
+                case "3":
+                    Usuario nuevo = crearUsuarioMinimo();
+                    chat.agregarParticipante(nuevo);
+                    break;
 
-        // === Crear Chat General ===
-        List<Usuario> participantesChat = new ArrayList<>();
-        participantesChat.add(admin);
-        participantesChat.add(corredor);
+                case "4":
+                    int idEliminar = leerEntero("Cédula del participante a eliminar: ");
+                    Usuario u = buscarPorId(chat.getParticipantes(), idEliminar);
+                    if (u == null) System.out.println("No existe ese participante.");
+                    else chat.eliminarParticipante(u);
+                    break;
 
-        ChatGeneral chatGeneral = new ChatGeneral(
-                101,
-                new ArrayList<>(),
-                participantesChat
-        );
+                case "5":
+                    listarParticipantes(chat);
+                    break;
 
-        // === Crear Mensajería Directa ===
-        MensajeriaDirecta chatPrivado = new MensajeriaDirecta(
-                501,
-                admin,
-                corredor,
-                new ArrayList<>()
-        );
+                case "0":
+                    salir = true;
+                    System.out.println("Saliendo del Chat General...");
+                    break;
 
-        // === Simulación de interacción básica ===
-        chatGeneral.enviarMensaje("¡Bienvenidos al evento!", admin);
-        chatPrivado.enviarMensaje("Hola Ana, recuerda tu dorsal 210", admin);
+                default:
+                    System.out.println("Opción inválida.");
+            }
+        }
+    }
 
-        // === Mostrar por consola ===
-        System.out.println("===== DATOS DE PRUEBA =====");
-        System.out.println("Evento: " + evento.getNombre());
-        System.out.println("Categorías: " + categorias.size());
-        System.out.println("Corredor: " + corredor.getNombre());
-        System.out.println("Inscripción #" + inscripcion.getId() + " - Estado: " + inscripcion.getEstado());
-        System.out.println("Administrador: " + admin.getNombre());
-        System.out.println("Chat General ID: " + chatGeneral.getIdChat());
-        System.out.println("Chat Privado ID: " + chatPrivado.getIdConversacion());
-        System.out.println("============================");
+    // -------- Helpers sencillos --------
+
+    private static Usuario crearUsuarioMinimo() {
+        int cedula = leerEntero("Cédula (solo números): ");
+        System.out.print("Nombre: ");
+        String nombre = SC.nextLine();
+        String correoTemp = (nombre == null || nombre.isBlank())
+                ? ("user" + cedula + "@temp.local")
+                : (nombre.trim().toLowerCase().replace(" ", ".") + "@temp.local");
+        return new Usuario(cedula, nombre, "", correoTemp);
+    }
+
+    private static void listarParticipantes(ChatGeneral chat) {
+        List<Usuario> ps = chat.getParticipantes();
+        if (ps.isEmpty()) {
+            System.out.println("No hay participantes.");
+            return;
+        }
+        System.out.println("\n--- Participantes ---");
+        for (Usuario u : ps) System.out.println(u.getId() + " - " + u.getNombre());
+        System.out.println("---------------------");
+    }
+
+    private static Usuario buscarPorId(List<Usuario> lista, int id) {
+        if (lista == null) return null;
+        for (Usuario u : lista) if (u.getId() == id) return u;
+        return null;
+    }
+
+    private static int leerEntero(String prompt) {
+        while (true) {
+            try {
+                System.out.print(prompt);
+                return Integer.parseInt(SC.nextLine().trim());
+            } catch (NumberFormatException e) {
+                System.out.println("Número inválido. Intenta de nuevo.");
+            }
+        }
     }
 }
