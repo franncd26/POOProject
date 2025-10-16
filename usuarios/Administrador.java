@@ -85,7 +85,7 @@ public class Administrador extends Usuario {
         System.out.print("Ingrese el tiempo individual (en minutos): ");
         double tiempoIndividual = sc.nextDouble();
 
-        Tiempo tiempo = new Tiempo(tiempoIndividual, 0, 0);
+        Tiempo tiempo = new Tiempo(tiempoIndividual, 0, 0, null, null, null);
         System.out.println(" Registro de tiempo completado.\n");
         sc.close();
     }
