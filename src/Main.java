@@ -8,470 +8,829 @@ import usuarios.Administrador;
 import usuarios.Corredor;
 import usuarios.Usuario;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Punto de entrada de la aplicación de consola.
+ *
+ * <p><b>Características principales:</b></p>
+ * <ul>
+ *   <li>Login por cédula: asigna rol por pertenencia a un set de cédulas de administrador.</li>
+ *   <li>Menú de <b>Administrador</b>: crear eventos (con fecha real), cambiar estado (transiciones válidas),
+ *       inscribir corredores (creación en caliente), confirmar pago/inscripción y registrar tiempos.</li>
+ *   <li>Menú de <b>Corredor</b>: ver eventos, ver inscripciones propias y participar en chats.</li>
+ *   <li><b>Chat General</b> y <b>Mensajería Directa</b> con validaciones de participación.</li>
+ *   <li>Persistencia simple en memoria: Map de usuarios, eventos, DMs y tiempos por evento.</li>
+ * </ul>
+ *
+ * <p><b>Convenciones:</b> no se cierra el {@link Scanner} global (no cerrar System.in); toda la interacción
+ * de consola ocurre aquí (las entidades no realizan I/O).</p>
+ */
 public class Main {
 
+    /** Scanner global (no cerrar). */
     private static final Scanner SC = new Scanner(System.in);
-    private static final List<Evento> EVENTOS = new ArrayList<>();
-    private static final Map<Integer, Usuario> USUARIOS = new HashMap<>(); // cedula -> Usuario
-    private static final List<Corredor> CORREDORES = new ArrayList<>();
-    private static final Administrador ADMIN = new Administrador(99999999, "Admin", "0000-0000", "admin@tec.ac.cr", "ADMIN");
 
-    // Chats
+    /** Cédulas reconocidas como administradores (ajustar a tu entorno). */
+    private static final Set<Integer> ADMIN_CEDULAS = new HashSet<>(Arrays.asList(1010, 2020));
+
+    /** Almacenamiento en memoria de usuarios por cédula. */
+    private static final Map<Integer, Usuario> USUARIOS = new HashMap<>();
+
+    /** Almacenamiento en memoria de eventos por ID. */
+    private static final Map<Integer, Evento> EVENTOS = new HashMap<>();
+
+    /** Almacenamiento en memoria de hilos de DM por ID. */
+    private static final Map<Integer, MensajeriaDirecta> DMS = new HashMap<>();
+
+    /** Contadores simples de IDs. */
+    private static final AtomicInteger SEQ_EVENTO = new AtomicInteger(1);
+    private static final AtomicInteger SEQ_INSCRIPCION = new AtomicInteger(1);
+    private static final AtomicInteger SEQ_DM = new AtomicInteger(1);
+
+    /** Chat general único. */
     private static final ChatGeneral CHAT_GENERAL = new ChatGeneral(1);
-    private static final List<MensajeriaDirecta> CONVERSACIONES = new ArrayList<>();
 
-    // estado actual para sub-menús
-    private static Usuario usuarioActual = ADMIN;
-    private static MensajeriaDirecta mdActual = null;
+    /** Tiempos por evento: Map<EventoId, Map<InscripcionId, Tiempo>> */
+    private static final Map<Integer, Map<Integer, Tiempo>> TIEMPOS_POR_EVENTO = new HashMap<>();
 
+    /** Usuario autenticado en la sesión actual. */
+    private static Usuario usuarioActual = null;
+
+    /** Catálogo base de categorías para selección rápida. */
+    private static final List<Categoria> CATEGORIAS_BASE = new ArrayList<>();
+
+    /**
+     * Método principal.
+     * <p>Precarga categorías de ejemplo y entra al bucle de login/ruteo de menús por rol.</p>
+     *
+     * @param args argumentos de línea de comandos (no usados).
+     */
     public static void main(String[] args) {
-        // bootstrap admin
-        USUARIOS.put(ADMIN.getId(), ADMIN);
-        CHAT_GENERAL.agregarParticipante(ADMIN);
-        loopMenu();
-        System.out.println("¡Hasta luego!");
+        seedCategoriasDeEjemplo();
+        loopLogin();
+        // Nota: No cerramos SC para no cerrar System.in.
     }
 
-    private static void loopMenu() {
-    int op;
-    do {
-        System.out.println("\n=== SISTEMA DE EVENTOS DE RUNNING ===");
-        System.out.println("1) Registrar corredor");
-        System.out.println("2) Crear evento (admin)");
-        System.out.println("3) Inscribir corredor en evento");
-        System.out.println("4) Confirmar pago de inscripción");
-        System.out.println("5) Registrar tiempo de corredor (admin)");
-        System.out.println("6) Ver inscripciones de un corredor");
-        System.out.println("7) Chat general: enviar/leer");
-        System.out.println("8) Chat directo: enviar/leer");
-        System.out.println("9) Ver resumen general de un evento");           // 👈 NUEVO
-        System.out.println("10) Ver resumen por categoría de un evento");     // 👈 NUEVO
-        System.out.println("0) Salir");
-        System.out.print("Opción: ");
-        op = leerEntero();
+    // =====================================================================================
+    // Login y ruteo por rol
+    // =====================================================================================
 
-        switch (op) {
-            case 1 -> registrarCorredor();
-            case 2 -> crearEventoComoAdmin();
-            case 3 -> inscribirCorredorEnEvento();
-            case 4 -> confirmarPagoInscripcion();
-            case 5 -> registrarTiempoComoAdmin();
-            case 6 -> verInscripcionesDeCorredor();
-            case 7 -> submenuChatGeneral();
-            case 8 -> submenuChatDirecto();
-            case 9 -> verResumenGeneralDeEvento();            // 👈 NUEVO
-            case 10 -> verResumenPorCategoriaDeEvento();      // 👈 NUEVO
-            case 0 -> { /* salir */ }
-            default -> System.out.println("Opción inválida.");
-        }
-    } while (op != 0);
-}
-
-
-    // ======== Opción 1 ========
-    private static void registrarCorredor() {
-        System.out.println("\n== Registrar corredor ==");
-        int ced = leerEntero("Cédula: ");
-        if (USUARIOS.containsKey(ced)) { System.out.println("Ya existe esa cédula."); return; }
-        String nombre = leerLineaNoVacia("Nombre: ");
-        String tel = leerLineaNoVacia("Teléfono: ");
-        String correo = leerLineaNoVacia("Correo: ");
-        Date fn = leerFecha("Fecha de nacimiento (dd/MM/yyyy): ");
-        char sexo = leerChar("Sexo (M/F): ");
-        String sangre = leerLineaNoVacia("Tipo de sangre (ej. O+): ");
-        String emergencia = leerLineaNoVacia("Contacto de emergencia: ");
-        Corredor c = new Corredor(ced, nombre, tel, correo, fn, sexo, sangre, emergencia);
-        CORREDORES.add(c);
-        USUARIOS.put(ced, c);
-        System.out.println("Corredor registrado.");
-    }
-
-    // ======== Opción 2 (admin) ========
-    private static void crearEventoComoAdmin() {
-        if (!esAdminAutenticado()) return;
-        System.out.println("\n== Crear evento ==");
-        String nombre = leerLineaNoVacia("Nombre del evento: ");
-        Date fecha = leerFecha("Fecha (dd/MM/yyyy): ");
-        String desc = leerLinea("Descripción (opcional): ");
-        Evento e = ADMIN.crearEvento(EVENTOS, nombre, fecha, desc);
-        if (e == null) return;
-
-        System.out.println("Agregar categorías (mínimo 1). Deja vacío para terminar.");
+    /**
+     * Bucle de autenticación y ruteo a menús de Administrador o Corredor.
+     * <p>Permite cerrar sesión y reingresar con otra cédula.</p>
+     */
+    private static void loopLogin() {
         while (true) {
-            String ncat = leerLinea("Nombre categoría: ");
-            if (ncat == null || ncat.isBlank()) break;
-            int min = leerEntero("Edad mínima: ");
-            int max = leerEntero("Edad máxima: ");
-            ADMIN.agregarCategoriaAEvento(e, ncat, min, max);
+            limpiarPantalla();
+            titulo("Inicio de sesión");
+            int cedula = leerEntero("Cédula (números): ");
+            Usuario u = USUARIOS.get(cedula);
+
+            if (u == null) {
+                String nombre = leerLinea("Nombre: ");
+                String tel = leerLinea("Teléfono (opcional): ");
+                String correo = leerLinea("Correo (opcional): ");
+
+                if (esAdminPorCedula(cedula)) {
+                    u = new Administrador(cedula, nombre, tel, correo, "ADMIN");
+                    USUARIOS.put(cedula, u);
+                    println("Creado y autenticado como Administrador.");
+                } else {
+                    u = new Corredor(cedula, nombre, tel, correo);
+                    USUARIOS.put(cedula, u);
+                    println("Creado y autenticado como Corredor.");
+                }
+            } else {
+                println("Bienvenido de nuevo, " + u.getNombre() + " (" + (u instanceof Administrador ? "Admin" : "Corredor") + ")");
+            }
+
+            usuarioActual = u;
+            pausa();
+
+            if (usuarioActual instanceof Administrador) {
+                menuAdministrador((Administrador) usuarioActual);
+            } else {
+                menuCorredor((Corredor) usuarioActual);
+            }
         }
-        System.out.println("Evento creado:\n" + e.generarResumenGeneral());
     }
 
-    // ======== Opción 3 ========
-    private static void inscribirCorredorEnEvento() {
-        System.out.println("\n== Inscribir corredor en evento ==");
-        Corredor c = seleccionarCorredorPorCedula();
-        if (c == null) return;
-
-        Evento e = seleccionarEvento();
-        if (e == null) return;
-
-        Categoria cat = seleccionarCategoriaPorNombre(e);
-        if (cat == null) return;
-
-        Inscripcion.Distancia dist = seleccionarDistancia();
-        Inscripcion.Talla talla = seleccionarTalla();
-        int dorsal = leerEntero("Número de dorsal: ");
-        int idIns = generarIdInscripcion(e);
-
-        Inscripcion ins = new Inscripcion(
-                idIns, dist, talla, dorsal,
-                Inscripcion.Estado.PENDIENTE, c, e, cat
-        );
-
-        boolean ok = ADMIN.registrarInscripcionEnEvento(e, ins);
-        System.out.println(ok ? "Inscripción creada." : "No se pudo (dorsal repetido o datos inválidos).");
+    /**
+     * Determina si una cédula pertenece a un administrador.
+     *
+     * @param cedula cédula a validar.
+     * @return {@code true} si la cédula está registrada como admin; {@code false} en caso contrario.
+     */
+    private static boolean esAdminPorCedula(int cedula) {
+        return ADMIN_CEDULAS.contains(cedula);
     }
 
-    // ======== Opción 4 ========
-    private static void confirmarPagoInscripcion() {
-        System.out.println("\n== Confirmar pago ==");
-        Evento e = seleccionarEvento();
-        if (e == null) return;
-        int dorsal = leerEntero("Dorsal: ");
-        Inscripcion ins = e.buscarInscripcionPorDorsal(dorsal);
-        if (ins == null) { System.out.println("No existe esa inscripción."); return; }
-        boolean ok = ADMIN.confirmarPagoInscripcion(ins);
-        System.out.println(ok ? "Pago confirmado (PAGADA)." : "No fue posible (revise estado actual).");
-    }
+    // =====================================================================================
+    // Menú Administrador
+    // =====================================================================================
 
-    // ======== Opción 5 (admin) ========
-    private static void registrarTiempoComoAdmin() {
-        if (!esAdminAutenticado()) return;
-        System.out.println("\n== Registrar tiempo ==");
-        Evento e = seleccionarEvento();
-        if (e == null) return;
-        int dorsal = leerEntero("Dorsal: ");
-        double tMin = leerDouble("Tiempo (minutos, ej. 23.5): ");
-        int posGen = leerEntero("Posición general: ");
-        int posCat = leerEntero("Posición categoría: ");
-        boolean ok = ADMIN.registrarTiempos(e, dorsal, tMin, posGen, posCat);
-        System.out.println(ok ? "Tiempo registrado." : "No se pudo registrar (revise dorsal/evento).");
-
-        System.out.println("\nResumen general:");
-        System.out.println(e.generarResumenGeneral());
-        System.out.println("\nTop 3 general:");
-        for (String s : e.obtenerPodioGeneral()) System.out.println(" - " + s);
-    }
-
-    // ======== Opción 6 ========
-    private static void verInscripcionesDeCorredor() {
-        System.out.println("\n== Ver inscripciones del corredor ==");
-        Corredor c = seleccionarCorredorPorCedula();
-        if (c == null) return;
-        c.consultarResultados();
-    }
-
-    // ======== Opción 7: Chat general ========
-    private static void submenuChatGeneral() {
-        System.out.println("\n== Chat General ==");
-        int op;
+    /**
+     * Menú para usuarios administradores.
+     *
+     * @param admin instancia autenticada de {@link Administrador}.
+     */
+    private static void menuAdministrador(Administrador admin) {
+        int opt;
         do {
-            System.out.println("""
-                    1) Entrar como usuario por cédula
-                    2) Enviar mensaje
-                    3) Ver mensajes
-                    4) Agregar participante por cédula
-                    0) Volver""");
-            System.out.print("Opción: ");
-            op = leerEntero();
-            switch (op) {
-                case 1 -> setUsuarioActualPorCedula();
-                case 2 -> enviarMensajeChatGeneral();
-                case 3 -> verMensajesChatGeneral();
-                case 4 -> agregarParticipanteChatGeneral();
-                case 0 -> { /* volver */ }
-                default -> System.out.println("Opción inválida.");
+            limpiarPantalla();
+            titulo("Menú Administrador - " + admin.getNombre());
+            println("1) Crear evento");
+            println("2) Cambiar estado de evento (transiciones válidas)");
+            println("3) Listar eventos y resumen");
+            println("4) Crear inscripción para corredor");
+            println("5) Confirmar pago / Confirmar inscripción");
+            println("6) Registrar tiempo");
+            println("7) Chat General");
+            println("8) Mensajería Directa");
+            println("9) Cerrar sesión");
+            println("0) Salir");
+            opt = leerEntero("Opción: ");
+
+            switch (opt) {
+                case 1 -> accionCrearEvento(admin);
+                case 2 -> accionCambiarEstadoEvento(admin);
+                case 3 -> accionListarEventosConResumen();
+                case 4 -> accionCrearInscripcion(admin);
+                case 5 -> accionConfirmaciones();
+                case 6 -> accionRegistrarTiempo(admin);
+                case 7 -> submenuChatGeneral();
+                case 8 -> submenuMensajeriaDirecta();
+                case 9 -> { usuarioActual = null; return; }
+                case 0 -> salida();
+                default -> println("Opción inválida.");
             }
-        } while (op != 0);
+            pausa();
+        } while (true);
     }
 
-    private static void enviarMensajeChatGeneral() {
-        if (usuarioActual == null) { System.out.println("Seleccione usuario (opción 1)."); return; }
-        String msg = leerLineaNoVacia("Mensaje: ");
-        boolean ok = CHAT_GENERAL.enviarMensaje(msg, usuarioActual);
-        if (!ok) System.out.println("No se pudo (¿estás en el chat?).");
-    }
+    // =====================================================================================
+    // Menú Corredor
+    // =====================================================================================
 
-    private static void verMensajesChatGeneral() {
-        System.out.println("\n--- Chat General ---");
-        for (String m : CHAT_GENERAL.recibirMensajes()) System.out.println(m);
-        System.out.println("--------------------");
-    }
-
-    private static void agregarParticipanteChatGeneral() {
-        int ced = leerEntero("Cédula a agregar: ");
-        Usuario u = USUARIOS.get(ced);
-        if (u == null) { System.out.println("No existe."); return; }
-        boolean ok = CHAT_GENERAL.agregarParticipante(u);
-        System.out.println(ok ? "Agregado." : "Ya estaba o no se pudo.");
-    }
-
-    // ======== Opción 8: Chat directo 1-a-1 ========
-    private static void submenuChatDirecto() {
-        System.out.println("\n== Chat Directo ==");
-        int op;
+    /**
+     * Menú para usuarios corredores.
+     *
+     * @param corredor instancia autenticada de {@link Corredor}.
+     */
+    private static void menuCorredor(Corredor corredor) {
+        int opt;
         do {
-            System.out.println("""
-                    1) Seleccionar usuario actual por cédula
-                    2) Abrir/crear conversación (cédula del otro)
-                    3) Enviar mensaje en conversación actual
-                    4) Ver mensajes de conversación actual
-                    5) Listar mis conversaciones
-                    0) Volver""");
-            System.out.print("Opción: ");
-            op = leerEntero();
-            switch (op) {
-                case 1 -> setUsuarioActualPorCedula();
-                case 2 -> abrirOCrearConversacion();
-                case 3 -> enviarMensajeMD();
-                case 4 -> verMensajesMD();
-                case 5 -> listarMisConversaciones();
-                case 0 -> { /* volver */ }
-                default -> System.out.println("Opción inválida.");
+            limpiarPantalla();
+            titulo("Menú Corredor - " + corredor.getNombre());
+            println("1) Ver eventos disponibles");
+            println("2) Ver mis inscripciones");
+            println("3) Chat General");
+            println("4) Mensajería Directa");
+            println("5) Cerrar sesión");
+            println("0) Salir");
+            opt = leerEntero("Opción: ");
+
+            switch (opt) {
+                case 1 -> accionListarEventosConResumen();
+                case 2 -> accionVerInscripcionesCorredor(corredor);
+                case 3 -> submenuChatGeneral();
+                case 4 -> submenuMensajeriaDirecta();
+                case 5 -> { usuarioActual = null; return; }
+                case 0 -> salida();
+                default -> println("Opción inválida.");
             }
-        } while (op != 0);
+            pausa();
+        } while (true);
     }
 
-    private static void abrirOCrearConversacion() {
-        if (usuarioActual == null) { System.out.println("Seleccione usuario (opción 1)."); return; }
-        int cedOtro = leerEntero("Cédula del otro usuario: ");
-        Usuario otro = USUARIOS.get(cedOtro);
-        if (otro == null) { System.out.println("No existe ese usuario."); return; }
-        mdActual = buscarConversacion(usuarioActual, otro);
-        if (mdActual == null) {
-            mdActual = new MensajeriaDirecta(generarIdConversacion(), usuarioActual, otro);
-            CONVERSACIONES.add(mdActual);
-            System.out.println("Conversación creada (#" + mdActual.getIdConversacion() + ").");
-        } else {
-            System.out.println("Conversación abierta (#" + mdActual.getIdConversacion() + ").");
-        }
-    }
+    // =====================================================================================
+    // Acciones: Eventos / Inscripciones / Tiempos
+    // =====================================================================================
 
-    private static void enviarMensajeMD() {
-        if (usuarioActual == null) { System.out.println("Seleccione usuario (opción 1)."); return; }
-        if (mdActual == null) { System.out.println("Abra/cree una conversación (opción 2)."); return; }
-        String msg = leerLineaNoVacia("Mensaje: ");
-        boolean ok = mdActual.enviarMensaje(msg, usuarioActual);
-        if (!ok) System.out.println("No se pudo enviar.");
-    }
+    /**
+     * Crea un evento solicitando nombre, descripción, fecha (AAAA-MM-DD) y categorías.
+     *
+     * @param admin administrador actual.
+     */
+    private static void accionCrearEvento(Administrador admin) {
+        titulo("Crear evento");
+        String nombre = leerLinea("Nombre: ");
+        String descripcion = leerLinea("Descripción (opcional): ");
 
-    private static void verMensajesMD() {
-        if (mdActual == null) { System.out.println("No hay conversación activa."); return; }
-        System.out.println("\n--- Chat Directo #" + mdActual.getIdConversacion() + " ---");
-        for (String m : mdActual.recibirMensajes()) System.out.println(m);
-        System.out.println("---------------------------------------");
-    }
-
-    private static void listarMisConversaciones() {
-        if (usuarioActual == null) { System.out.println("Seleccione usuario (opción 1)."); return; }
-        System.out.println("Conversaciones de " + usuarioActual.getNombre() + ":");
-        int count = 0;
-        for (MensajeriaDirecta md : CONVERSACIONES) {
-            if (md.getUsuario1() == usuarioActual || md.getUsuario2() == usuarioActual) {
-                Usuario otro = (md.getUsuario1() == usuarioActual) ? md.getUsuario2() : md.getUsuario1();
-                System.out.println(" - #" + md.getIdConversacion() + " con " +
-                        (otro != null ? otro.getNombre() + " (" + otro.getId() + ")" : "(desconocido)"));
-                count++;
+        // Pedir fecha real en formato AAAA-MM-DD
+        Date fecha = null;
+        while (fecha == null) {
+            String f = leerLinea("Fecha (AAAA-MM-DD): ");
+            try {
+                String[] p = f.split("-");
+                Calendar cal = Calendar.getInstance();
+                cal.setLenient(false);
+                cal.set(Integer.parseInt(p[0]), Integer.parseInt(p[1]) - 1, Integer.parseInt(p[2]), 0, 0, 0);
+                cal.set(Calendar.MILLISECOND, 0);
+                fecha = cal.getTime();
+            } catch (Exception e) {
+                println("Formato inválido. Ej: 2025-11-03");
             }
         }
-        if (count == 0) System.out.println(" (sin conversaciones)");
+
+        List<Categoria> categorias = seleccionarCategorias();
+
+        int id = SEQ_EVENTO.getAndIncrement();
+        Evento ev = admin.crearEvento(id, nombre, fecha, descripcion, categorias);
+        EVENTOS.put(ev.getId(), ev);
+
+        println("Evento creado con ID: " + ev.getId() + " (estado: " + ev.getEstado() + ")");
+        println("Recuerda ABRIR el evento para permitir inscripciones.");
     }
 
-    private static MensajeriaDirecta buscarConversacion(Usuario a, Usuario b) {
-        for (MensajeriaDirecta md : CONVERSACIONES) {
-            if ((md.getUsuario1() == a && md.getUsuario2() == b) ||
-                (md.getUsuario1() == b && md.getUsuario2() == a)) {
-                return md;
+    /**
+     * Cambia el estado de un evento respetando transiciones válidas:
+     * PLANIFICADO→ABIERTO→CERRADO→FINALIZADO.
+     *
+     * @param admin administrador actual.
+     */
+    private static void accionCambiarEstadoEvento(Administrador admin) {
+        titulo("Cambiar estado de evento");
+        Evento ev = seleccionarEvento();
+        if (ev == null) { println("No hay eventos."); return; }
+
+        println("Estado actual: " + ev.getEstado());
+        println("Transiciones permitidas:");
+        switch (ev.getEstado()) {
+            case PLANIFICADO -> println("1) ABRIR");
+            case ABIERTO     -> println("2) CERRAR");
+            case CERRADO     -> println("3) FINALIZAR");
+            case FINALIZADO  -> println("No hay transiciones desde FINALIZADO.");
+        }
+
+        int o = leerEntero("Opción: ");
+        try {
+            switch (ev.getEstado()) {
+                case PLANIFICADO -> { if (o == 1) admin.abrirEvento(ev); else println("Opción inválida."); }
+                case ABIERTO     -> { if (o == 2) admin.cerrarEvento(ev); else println("Opción inválida."); }
+                case CERRADO     -> { if (o == 3) admin.finalizarEvento(ev); else println("Opción inválida."); }
+                case FINALIZADO  -> { /* sin transición */ }
             }
+        } catch (Exception e) {
+            println("Error: " + e.getMessage());
         }
-        return null;
+        println("Estado actual: " + ev.getEstado());
     }
 
-    private static int generarIdConversacion() {
-        int mx = 0;
-        for (MensajeriaDirecta md : CONVERSACIONES)
-            if (md.getIdConversacion() > mx) mx = md.getIdConversacion();
-        return mx + 1;
-    }
-
-    // ======== Selección / utilitarios ========
-    private static Evento seleccionarEvento() {
-        if (EVENTOS.isEmpty()) { System.out.println("No hay eventos."); return null; }
-        System.out.println("Eventos disponibles:");
-        for (int i = 0; i < EVENTOS.size(); i++) {
-            System.out.println((i + 1) + ") " + EVENTOS.get(i).getNombre() + " - " +
-                    new SimpleDateFormat("dd/MM/yyyy").format(EVENTOS.get(i).getFecha()));
+    /**
+     * Lista eventos con un resumen de inscripciones y cantidad de tiempos registrados.
+     */
+    private static void accionListarEventosConResumen() {
+        titulo("Eventos y resumen");
+        if (EVENTOS.isEmpty()) {
+            println("No hay eventos registrados.");
+            return;
         }
-        int idx = leerEntero("Seleccione (número): ") - 1;
-        if (idx < 0 || idx >= EVENTOS.size()) { System.out.println("Selección inválida."); return null; }
-        return EVENTOS.get(idx);
+        EVENTOS.values().stream()
+                .sorted(Comparator.comparing(Evento::getId))
+                .forEach(ev -> {
+                    println("[" + ev.getId() + "] " + ev.getNombre() + " | " + ev.getEstado());
+                    println("   " + ev.generarResumenInscripciones());
+                    Map<Integer, Tiempo> mapT = TIEMPOS_POR_EVENTO.get(ev.getId());
+                    int cantTiempos = (mapT == null) ? 0 : mapT.size();
+                    println("   Tiempos registrados: " + cantTiempos);
+                });
     }
 
-    private static Categoria seleccionarCategoriaPorNombre(Evento e) {
-        if (e.getCategorias().isEmpty()) { System.out.println("El evento no tiene categorías."); return null; }
-        System.out.println("Categorías del evento:");
-        for (Categoria c : e.getCategorias()) System.out.println(" - " + c.getNombre());
-        String nombre = leerLineaNoVacia("Nombre exacto de la categoría: ");
-        for (Categoria c : e.getCategorias())
-            if (c.getNombre().equalsIgnoreCase(nombre)) return c;
-        System.out.println("No existe esa categoría.");
-        return null;
-    }
+    /**
+     * Crea una inscripción para un corredor (crea al corredor “en caliente” si no existe),
+     * valida estado del evento y unicidad de dorsal.
+     *
+     * @param admin administrador actual.
+     */
+    private static void accionCrearInscripcion(Administrador admin) {
+        titulo("Crear inscripción");
+        Evento ev = seleccionarEvento();
+        if (ev == null) { println("No hay eventos."); return; }
 
-    private static Corredor seleccionarCorredorPorCedula() {
-        int ced = leerEntero("Cédula del corredor: ");
-        Usuario u = USUARIOS.get(ced);
-        if (u instanceof Corredor) return (Corredor) u;
-        System.out.println("No existe corredor con esa cédula.");
-        return null;
-    }
-
-    private static int generarIdInscripcion(Evento e) {
-        int mx = 0;
-        for (Inscripcion i : e.getInscripciones()) if (i.getId() > mx) mx = i.getId();
-        return mx + 1;
-    }
-
-    private static void setUsuarioActualPorCedula() {
-        int ced = leerEntero("Cédula: ");
-        Usuario u = USUARIOS.get(ced);
-        if (u == null) { System.out.println("No existe usuario con esa cédula."); return; }
-        usuarioActual = u;
-        System.out.println("Ahora estás como: " + u.getNombre());
-    }
-
-    private static boolean esAdminAutenticado() {
-        System.out.println("== Autenticación de administrador ==");
-        int ced = leerEntero("Cédula: ");
-        if (ced != ADMIN.getId()) { System.out.println("Solo el administrador puede realizar esta acción."); return false; }
-        return true;
-    }
-
-    // ======== Entrada segura ========
-    private static int leerEntero() {
-        while (true) {
-            try { return Integer.parseInt(SC.nextLine().trim()); }
-            catch (Exception e) { System.out.print("Ingrese un número válido: "); }
-        }
-    }
-
-    private static int leerEntero(String prompt) { System.out.print(prompt); return leerEntero(); }
-
-    private static double leerDouble(String prompt) {
-        System.out.print(prompt);
-        while (true) {
-            try { return Double.parseDouble(SC.nextLine().trim().replace(",", ".")); }
-            catch (Exception e) { System.out.print("Ingrese un número (ej. 23.5): "); }
-        }
-    }
-
-    private static String leerLinea(String prompt) { System.out.print(prompt); return SC.nextLine(); }
-
-    private static String leerLineaNoVacia(String prompt) {
-        String s;
-        do { System.out.print(prompt); s = SC.nextLine(); }
-        while (s == null || s.isBlank());
-        return s.trim();
-    }
-
-    private static Date leerFecha(String prompt) {
-        System.out.print(prompt);
-        SimpleDateFormat f = new SimpleDateFormat("dd/MM/yyyy"); f.setLenient(false);
-        while (true) {
-            try { return f.parse(SC.nextLine().trim()); }
-            catch (ParseException e) { System.out.print("Formato inválido. Use dd/MM/yyyy: "); }
-        }
-    }
-
-    private static char leerChar(String prompt) {
-        System.out.print(prompt);
-        while (true) {
-            String s = SC.nextLine().trim();
-            if (!s.isEmpty()) return Character.toUpperCase(s.charAt(0));
-            System.out.print("Ingrese un caracter: ");
-        }
-    }
-
-    private static Inscripcion.Distancia seleccionarDistancia() {
-        System.out.println("Distancias:");
-        for (Inscripcion.Distancia d : Inscripcion.Distancia.values())
-            System.out.println(" - " + d.name());
-        while (true) {
-            String s = leerLineaNoVacia("Elija (ej. DIEZ_K): ").toUpperCase(Locale.ROOT);
-            try { return Inscripcion.Distancia.valueOf(s); }
-            catch (Exception e) { System.out.println("Valor inválido."); }
-        }
-    }
-
-    private static Inscripcion.Talla seleccionarTalla() {
-        System.out.println("Tallas:");
-        for (Inscripcion.Talla t : Inscripcion.Talla.values())
-            System.out.println(" - " + t.name());
-        while (true) {
-            String s = leerLineaNoVacia("Elija (ej. M): ").toUpperCase(Locale.ROOT);
-            try { return Inscripcion.Talla.valueOf(s); }
-            catch (Exception e) { System.out.println("Valor inválido."); }
-        }
-    }
-    // 9) Resumen general + podio general
-    private static void verResumenGeneralDeEvento() {
-        System.out.println("\n== Resumen general del evento ==");
-        Evento e = seleccionarEvento();
-        if (e == null) return;
-
-        System.out.println(e.generarResumenGeneral());
-
-        // Mostrar podio general (top 3)
-        var podio = e.obtenerPodioGeneral();
-        System.out.println("\nPodio general:");
-        if (podio.isEmpty()) {
-            System.out.println(" (sin llegadas aún)");
-        } else {
-            for (String s : podio) System.out.println(" - " + s);
-        }
-    }
-
-// 10) Resumen por categoría + podio de esa categoría
-    private static void verResumenPorCategoriaDeEvento() {
-        System.out.println("\n== Resumen por categoría ==");
-        Evento e = seleccionarEvento();
-        if (e == null) return;
-
-        if (e.getCategorias().isEmpty()) {
-            System.out.println("El evento no tiene categorías.");
+        if (ev.getEstado() != Evento.EstadoEvento.ABIERTO) {
+            println("El evento no está ABIERTO. Ábrelo antes de inscribir.");
             return;
         }
 
-        // listar categorías y pedir nombre exacto (ya tienes helper similar)
-        System.out.println("Categorías del evento:");
-        for (var c : e.getCategorias()) System.out.println(" - " + c.getNombre());
-        String nombreCat = leerLineaNoVacia("Nombre exacto de la categoría: ");
-
-        System.out.println(e.generarResumenPorCategoria(nombreCat));
-
-        // Mostrar podio por categoría (top 3)
-        var podioCat = e.obtenerPodioCategoria(nombreCat);
-        System.out.println("\nPodio de la categoría \"" + nombreCat + "\":");
-        if (podioCat.isEmpty()) {
-            System.out.println(" (sin llegadas en esta categoría)");
+        int ced = leerEntero("Cédula del corredor: ");
+        Usuario u = USUARIOS.get(ced);
+        Corredor cor;
+        if (u == null) {
+            println("No existe esa cédula. Creemos al corredor:");
+            String nombre = leerLinea("Nombre: ");
+            String tel = leerLinea("Tel (opcional): ");
+            String correo = leerLinea("Correo (opcional): ");
+            cor = new Corredor(ced, nombre, tel, correo);
+            USUARIOS.put(ced, cor);
+            println("Corredor creado.");
+        } else if (u instanceof Corredor) {
+            cor = (Corredor) u;
         } else {
-            for (String s : podioCat) System.out.println(" - " + s);
+            println("Esa cédula pertenece a un Administrador. Usa una cédula de corredor.");
+            return;
+        }
+
+        mostrarDistancias();
+        int dOpt = leerEntero("Distancia (1..4): ");
+        Inscripcion.Distancia dist = switch (dOpt) {
+            case 1 -> Inscripcion.Distancia.CINCO_K;
+            case 2 -> Inscripcion.Distancia.DIEZ_K;
+            case 3 -> Inscripcion.Distancia.MEDIA_MARATON;
+            case 4 -> Inscripcion.Distancia.MARATON;
+            default -> null;
+        };
+        if (dist == null) { println("Distancia inválida."); return; }
+
+        mostrarTallas();
+        int tOpt = leerEntero("Talla (1..5): ");
+        Inscripcion.Talla talla = switch (tOpt) {
+            case 1 -> Inscripcion.Talla.XS;
+            case 2 -> Inscripcion.Talla.S;
+            case 3 -> Inscripcion.Talla.M;
+            case 4 -> Inscripcion.Talla.L;
+            case 5 -> Inscripcion.Talla.XL;
+            default -> null;
+        };
+        if (talla == null) { println("Talla inválida."); return; }
+
+        int dorsal = leerEntero("Dorsal (>0 y único en el evento): ");
+        int insId = SEQ_INSCRIPCION.getAndIncrement();
+
+        try {
+            Inscripcion ins = admin.crearInscripcionParaCorredor(insId, cor, ev, dist, talla, dorsal);
+            println("Inscripción creada: " + ins);
+        } catch (Exception ex) {
+            println("Error: " + ex.getMessage());
         }
     }
 
+    /**
+     * Permite confirmar pago (PENDIENTE→PAGADO) o confirmar inscripción (PAGADO→CONFIRMADO).
+     */
+    private static void accionConfirmaciones() {
+        titulo("Confirmaciones");
+        Evento ev = seleccionarEvento();
+        if (ev == null || ev.getInscripciones().isEmpty()) {
+            println("No hay inscripciones en este evento.");
+            return;
+        }
+        listarInscripciones(ev);
+        int idIns = leerEntero("ID de inscripción: ");
+        Inscripcion target = ev.getInscripciones().stream()
+                .filter(i -> i.getId() == idIns)
+                .findFirst().orElse(null);
+        if (target == null) { println("No existe esa inscripción."); return; }
+
+        println("Estado actual: " + target.getEstado());
+        println("1) Confirmar pago (PENDIENTE→PAGADO)");
+        println("2) Confirmar inscripción (PAGADO→CONFIRMADO)");
+        int o = leerEntero("Opción: ");
+        try {
+            if (o == 1) {
+                target.confirmarPago();
+            } else if (o == 2) {
+                target.confirmarInscripcion();
+            } else {
+                println("Opción inválida.");
+                return;
+            }
+            println("Nuevo estado: " + target.getEstado());
+        } catch (Exception ex) {
+            println("Error: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Registra un tiempo para una inscripción y lo almacena en memoria
+     * bajo {@code TIEMPOS_POR_EVENTO}.
+     *
+     * @param admin administrador actual.
+     */
+    private static void accionRegistrarTiempo(Administrador admin) {
+        titulo("Registrar tiempo");
+        Evento ev = seleccionarEvento();
+        if (ev == null || ev.getInscripciones().isEmpty()) {
+            println("No hay inscripciones en este evento.");
+            return;
+        }
+        listarInscripciones(ev);
+        int idIns = leerEntero("ID de inscripción: ");
+        Inscripcion ins = ev.getInscripciones().stream()
+                .filter(i -> i.getId() == idIns)
+                .findFirst().orElse(null);
+        if (ins == null) { println("No existe esa inscripción."); return; }
+
+        double tiempoSeg = leerDouble("Tiempo (segundos ≥ 0): ");
+        int posGen = leerEntero("Posición general (0 si no asignada): ");
+        int posCat = leerEntero("Posición por categoría (0 si no asignada): ");
+
+        try {
+            Tiempo t = admin.registrarTiempoParaInscripcion(ins, tiempoSeg, posGen, posCat);
+            TIEMPOS_POR_EVENTO
+                    .computeIfAbsent(ev.getId(), k -> new HashMap<>())
+                    .put(ins.getId(), t);
+            println("Tiempo registrado y guardado: " + t);
+        } catch (Exception ex) {
+            println("Error: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Muestra en consola las inscripciones del corredor actual.
+     *
+     * @param c corredor autenticado.
+     */
+    private static void accionVerInscripcionesCorredor(Corredor c) {
+        titulo("Mis inscripciones");
+        List<Inscripcion> lista = c.getInscripciones();
+        if (lista.isEmpty()) {
+            println("No tienes inscripciones.");
+            return;
+        }
+        for (Inscripcion i : lista) {
+            println(i.toString());
+        }
+    }
+
+    // =====================================================================================
+    // Chat General
+    // =====================================================================================
+
+    /**
+     * Submenú del chat general: unirse/salir, enviar y ver últimos mensajes.
+     */
+    private static void submenuChatGeneral() {
+        int opt;
+        do {
+            limpiarPantalla();
+            titulo("Chat General (ID=" + CHAT_GENERAL.getIdChat() + ")");
+            println("Participantes: " + CHAT_GENERAL.getParticipantes().size() + " | Mensajes: " + CHAT_GENERAL.getMensajes().size());
+            println("1) Unirme (si no estoy)");
+            println("2) Salir del chat");
+            println("3) Enviar mensaje");
+            println("4) Ver últimos 10 mensajes");
+            println("9) Volver");
+            opt = leerEntero("Opción: ");
+
+            switch (opt) {
+                case 1 -> {
+                    try {
+                        boolean added = CHAT_GENERAL.agregarParticipante(usuarioActual);
+                        println(added ? "Te uniste al chat." : "Ya estabas en el chat.");
+                    } catch (Exception ex) {
+                        println("Error: " + ex.getMessage());
+                    }
+                }
+                case 2 -> {
+                    try {
+                        boolean removed = CHAT_GENERAL.eliminarParticipante(usuarioActual);
+                        println(removed ? "Saliste del chat." : "No estabas en el chat.");
+                    } catch (Exception ex) {
+                        println("Error: " + ex.getMessage());
+                    }
+                }
+                case 3 -> {
+                    if (!CHAT_GENERAL.getParticipantes().contains(usuarioActual)) {
+                        println("Debes unirte al chat antes de enviar mensajes.");
+                    } else {
+                        String texto = leerLinea("Mensaje: ");
+                        try {
+                            CHAT_GENERAL.enviarMensaje(usuarioActual, texto);
+                            println("Mensaje enviado.");
+                        } catch (Exception ex) {
+                            println("Error: " + ex.getMessage());
+                        }
+                    }
+                }
+                case 4 -> {
+                    List<ChatGeneral.Mensaje> all = CHAT_GENERAL.getMensajes();
+                    int from = Math.max(0, all.size() - 10);
+                    List<ChatGeneral.Mensaje> ultimos = all.subList(from, all.size());
+                    if (ultimos.isEmpty()) {
+                        println("No hay mensajes.");
+                    } else {
+                        ultimos.forEach(m -> println(
+                                String.format("[%tF %<tT] %s: %s", m.getFecha(), m.getRemitente().getNombre(), m.getTexto())
+                        ));
+                    }
+                }
+                case 9 -> { return; }
+                default -> println("Opción inválida.");
+            }
+            pausa();
+        } while (true);
+    }
+
+    // =====================================================================================
+    // Mensajería Directa
+    // =====================================================================================
+
+    /**
+     * Submenú de mensajería directa: iniciar/seleccionar DM, enviar y ver últimos mensajes.
+     */
+    private static void submenuMensajeriaDirecta() {
+        int opt;
+        do {
+            limpiarPantalla();
+            titulo("Mensajería Directa");
+            println("1) Iniciar DM con cédula");
+            println("2) Enviar mensaje a DM existente");
+            println("3) Ver últimos 10 mensajes de un DM");
+            println("9) Volver");
+            opt = leerEntero("Opción: ");
+
+            switch (opt) {
+                case 1 -> accionIniciarDM();
+                case 2 -> accionEnviarDM();
+                case 3 -> accionVerDM();
+                case 9 -> { return; }
+                default -> println("Opción inválida.");
+            }
+            pausa();
+        } while (true);
+    }
+
+    /**
+     * Inicia (o reutiliza) un DM entre el usuario actual y otra cédula.
+     */
+    private static void accionIniciarDM() {
+        if (usuarioActual == null) { println("Debes iniciar sesión."); return; }
+        int cedReceptor = leerEntero("Cédula del otro usuario: ");
+        Usuario otro = USUARIOS.get(cedReceptor);
+        if (otro == null) { println("No existe ese usuario."); return; }
+        if (otro.equals(usuarioActual)) { println("No puedes abrir DM contigo mismo."); return; }
+
+        MensajeriaDirecta dm = buscarDMEntre(usuarioActual, otro);
+        if (dm == null) {
+            dm = new MensajeriaDirecta(SEQ_DM.getAndIncrement(), usuarioActual, otro);
+            DMS.put(dm.getIdDM(), dm);
+            println("DM creado con ID: " + dm.getIdDM());
+        } else {
+            println("Ya existía un DM: ID " + dm.getIdDM());
+        }
+    }
+
+    /**
+     * Envía un mensaje en un DM existente donde participa el usuario actual.
+     */
+    private static void accionEnviarDM() {
+        if (usuarioActual == null) { println("Debes iniciar sesión."); return; }
+        MensajeriaDirecta dm = seleccionarDMDelUsuarioActual();
+        if (dm == null) { println("No tienes DMs activos."); return; }
+        String texto = leerLinea("Mensaje: ");
+        try {
+            dm.enviarMensaje(usuarioActual, texto);
+            println("Mensaje enviado.");
+        } catch (Exception ex) {
+            println("Error: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Muestra los últimos 10 mensajes de un DM donde participa el usuario actual.
+     */
+    private static void accionVerDM() {
+        if (usuarioActual == null) { println("Debes iniciar sesión."); return; }
+        MensajeriaDirecta dm = seleccionarDMDelUsuarioActual();
+        if (dm == null) { println("No tienes DMs activos."); return; }
+        List<MensajeriaDirecta.Mensaje> all = dm.getMensajes();
+        int from = Math.max(0, all.size() - 10);
+        List<MensajeriaDirecta.Mensaje> ultimos = all.subList(from, all.size());
+        if (ultimos.isEmpty()) {
+            println("No hay mensajes en este DM.");
+        } else {
+            Usuario receptor = dm.obtenerReceptor(usuarioActual);
+            println("DM con: " + receptor.getNombre() + " (ID DM: " + dm.getIdDM() + ")");
+            ultimos.forEach(m -> println(
+                    String.format("[%tF %<tT] %s: %s", m.getFecha(), m.getRemitente().getNombre(), m.getTexto())
+            ));
+        }
+    }
+
+    // =====================================================================================
+    // Utilidades auxiliares
+    // =====================================================================================
+
+    /**
+     * Busca un DM existente entre dos usuarios.
+     *
+     * @param a usuario A.
+     * @param b usuario B.
+     * @return instancia de DM si existe; {@code null} en caso contrario.
+     */
+    private static MensajeriaDirecta buscarDMEntre(Usuario a, Usuario b) {
+        for (MensajeriaDirecta dm : DMS.values()) {
+            if (dm.esParticipante(a) && dm.esParticipante(b)) return dm;
+        }
+        return null;
+    }
+
+    /**
+     * Permite seleccionar un DM donde participa el usuario actual, validando pertenencia.
+     *
+     * @return DM elegido o {@code null} si no hay/selección inválida.
+     */
+    private static MensajeriaDirecta seleccionarDMDelUsuarioActual() {
+        List<MensajeriaDirecta> mis = new ArrayList<>();
+        for (MensajeriaDirecta dm : DMS.values()) {
+            if (dm.esParticipante(usuarioActual)) mis.add(dm);
+        }
+        if (mis.isEmpty()) return null;
+        println("Mis DMs:");
+        for (MensajeriaDirecta dm : mis) {
+            Usuario otro = dm.obtenerReceptor(usuarioActual);
+            println("[" + dm.getIdDM() + "] con " + otro.getNombre() + " (cédula " + otro.getId() + ")");
+        }
+        int id = leerEntero("ID DM: ");
+        MensajeriaDirecta elegido = DMS.get(id);
+        if (elegido == null || !elegido.esParticipante(usuarioActual)) {
+            println("ID inválido o no eres participante.");
+            return null;
+        }
+        return elegido;
+    }
+
+    /**
+     * Permite seleccionar un evento por ID mostrando lista disponible.
+     *
+     * @return evento elegido o {@code null} si no hay eventos.
+     */
+    private static Evento seleccionarEvento() {
+        if (EVENTOS.isEmpty()) return null;
+        println("Eventos:");
+        EVENTOS.values().stream()
+                .sorted(Comparator.comparing(Evento::getId))
+                .forEach(ev -> println("[" + ev.getId() + "] " + ev.getNombre() + " | " + ev.getEstado()));
+        int id = leerEntero("ID evento: ");
+        return EVENTOS.get(id);
+    }
+
+    /**
+     * Lista inscripciones de un evento en consola (ID, corredor, dorsal, estado).
+     *
+     * @param ev evento del cual listar inscripciones.
+     */
+    private static void listarInscripciones(Evento ev) {
+        if (ev.getInscripciones().isEmpty()) {
+            println("No hay inscripciones.");
+            return;
+        }
+        println("Inscripciones:");
+        ev.getInscripciones().forEach(i ->
+                println("ID=" + i.getId() + " | Corredor=" + i.getCorredor().getNombre()
+                        + " | Dorsal=" + i.getNumeroDorsal() + " | Estado=" + i.getEstado())
+        );
+    }
+
+    /**
+     * Muestra opciones de distancias disponibles.
+     */
+    private static void mostrarDistancias() {
+        println("Distancias: 1) 5K  2) 10K  3) Media Maratón  4) Maratón");
+    }
+
+    /**
+     * Muestra opciones de tallas disponibles.
+     */
+    private static void mostrarTallas() {
+        println("Tallas: 1) XS  2) S  3) M  4) L  5) XL");
+    }
+
+    /**
+     * Permite seleccionar múltiples categorías desde el catálogo base.
+     *
+     * @return lista de categorías elegidas (posiblemente vacía).
+     */
+    private static List<Categoria> seleccionarCategorias() {
+        List<Categoria> oferta = CATEGORIAS_BASE;
+        if (oferta.isEmpty()) return new ArrayList<>();
+        println("Categorías disponibles:");
+        for (int i = 0; i < oferta.size(); i++) {
+            Categoria c = oferta.get(i);
+            println((i + 1) + ") " + c.getNombre() + " (" + c.getEdadMin() + "-" + c.getEdadMax() + ")");
+        }
+        String sel = leerLinea("Ingrese índices separados por coma (ej: 1,2): ");
+        String[] toks = sel.split(",");
+        List<Categoria> res = new ArrayList<>();
+        for (String t : toks) {
+            try {
+                int idx = Integer.parseInt(t.trim()) - 1;
+                if (idx >= 0 && idx < oferta.size()) res.add(oferta.get(idx));
+            } catch (NumberFormatException ignored) {}
+        }
+        return res;
+    }
+
+    // =====================================================================================
+    // Categorías de ejemplo (catálogo base)
+    // =====================================================================================
+
+    /**
+     * Precarga categorías típicas para facilitar la creación de eventos.
+     * <p>Evita duplicación si ya fueron precargadas.</p>
+     */
+    private static void seedCategoriasDeEjemplo() {
+        if (!CATEGORIAS_BASE.isEmpty()) return;
+        CATEGORIAS_BASE.add(new Categoria(1, "Juvenil", 15, 25));
+        CATEGORIAS_BASE.add(new Categoria(2, "Adulto", 26, 40));
+        CATEGORIAS_BASE.add(new Categoria(3, "Máster", 41, 60));
+    }
+
+    // =====================================================================================
+    // Lectura robusta y helpers de UI de consola
+    // =====================================================================================
+
+    /**
+     * Lee una línea de texto desde consola (con trim).
+     *
+     * @param prompt mensaje de prompt.
+     * @return cadena (posiblemente vacía si el usuario solo presiona ENTER).
+     */
+    private static String leerLinea(String prompt) {
+        System.out.print(prompt);
+        String s = SC.nextLine();
+        return s == null ? "" : s.trim();
+    }
+
+    /**
+     * Lee un entero robustamente, reintentando hasta que sea válido.
+     *
+     * @param prompt mensaje de prompt.
+     * @return entero leído.
+     */
+    private static int leerEntero(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String s = SC.nextLine();
+            try {
+                return Integer.parseInt(s.trim());
+            } catch (Exception e) {
+                System.out.println("Ingrese un número entero válido.");
+            }
+        }
+    }
+
+    /**
+     * Lee un double robustamente, reintentando hasta que sea válido y ≥ 0.
+     *
+     * @param prompt mensaje de prompt.
+     * @return valor double leído (≥ 0).
+     */
+    private static double leerDouble(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String s = SC.nextLine();
+            try {
+                double v = Double.parseDouble(s.trim());
+                if (v < 0) System.out.println("Debe ser >= 0.");
+                else return v;
+            } catch (Exception e) {
+                System.out.println("Ingrese un número válido.");
+            }
+        }
+    }
+
+    /**
+     * Imprime un título seccionado.
+     *
+     * @param t texto del título.
+     */
+    private static void titulo(String t) {
+        System.out.println("=== " + t + " ===");
+    }
+
+    /**
+     * Imprime una línea de texto.
+     *
+     * @param s texto a imprimir.
+     */
+    private static void println(String s) {
+        System.out.println(s);
+    }
+
+    /**
+     * Pausa la consola hasta que el usuario presione ENTER.
+     */
+    private static void pausa() {
+        System.out.print("Continuar [ENTER]...");
+        SC.nextLine();
+    }
+
+    /**
+     * Limpieza visual simple (no borra pantalla; solo separa).
+     */
+    private static void limpiarPantalla() {
+        System.out.println();
+    }
+
+    /**
+     * Termina la aplicación sin cerrar el {@link Scanner} global explícitamente.
+     */
+    private static void salida() {
+        System.out.println("¡Hasta pronto!");
+        System.exit(0);
+    }
 }
