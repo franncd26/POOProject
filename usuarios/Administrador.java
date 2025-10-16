@@ -1,13 +1,12 @@
 package usuarios;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Scanner;
 import eventos.Categoria;
 import eventos.Evento;
 import eventos.Inscripcion;
 import eventos.Tiempo;
+
+import java.util.Date;
+import java.util.List;
 
 public class Administrador extends Usuario {
     private String rol;
@@ -17,76 +16,56 @@ public class Administrador extends Usuario {
         this.rol = rol;
     }
 
-    public String getRol() {
-        return rol;
+   
+
+    public String getRol() { return rol; }
+    public void setRol(String rol) { this.rol = rol; }
+
+    public Evento crearEvento(List<Evento> lista, String nombre, Date fecha, String descripcion) {
+        if (lista == null || nombre == null || fecha == null) return null;
+        for (Evento e : lista) {
+            if (e != null && nombre.equalsIgnoreCase(e.getNombre()) && fecha.equals(e.getFecha())) {
+                System.out.println("Ya existe un evento con ese nombre y fecha.");
+                return null;
+            }
+        }
+        Evento nuevo = new Evento(nombre, fecha, descripcion, Evento.Estado.PROGRAMADA);
+        lista.add(nuevo);
+        return nuevo;
     }
 
-    public void setRol(String rol) {
-        this.rol = rol;
+    public boolean cambiarEstadoEvento(Evento evento, Evento.Estado nuevoEstado) {
+        if (evento == null || nuevoEstado == null) return false;
+        evento.setEstado(nuevoEstado);
+        return true;
     }
 
-    public void crearEvento() {
-        Scanner sc = new Scanner(System.in);
-        System.out.println("=== CREAR NUEVO EVENTO ===");
-
-        System.out.print("Ingrese el nombre del evento: ");
-        String nombre = sc.nextLine();
-
-        System.out.print("Ingrese la descripción: ");
-        String descripcion = sc.nextLine();
-
-        // Fecha actual como ejemplo
-        Date fecha = new Date();
-        System.out.println("La fecha será: " + fecha);
-
-        System.out.print("Ingrese el estado del evento (Programado, En curso, Finalizado): ");
-        String estado = sc.nextLine();
-
-        // Por simplicidad, no pedimos categorías ni inscripciones aún
-        List<Categoria> categorias = new ArrayList<>();
-        List<Inscripcion> inscripciones = new ArrayList<>();
-
-        Evento nuevoEvento = new Evento(nombre, fecha, descripcion, estado, categorias, inscripciones);
-
-        System.out.println(" Evento creado exitosamente:");
-        System.out.println("Nombre: " + nuevoEvento.getNombre());
-        System.out.println("Descripción: " + nuevoEvento.getDescripcion());
-        System.out.println("Estado: " + nuevoEvento.getEstado());
-        System.out.println();
-        sc.close();
+    public boolean agregarCategoriaAEvento(Evento evento, String nombreCat, int edadMin, int edadMax) {
+        if (evento == null || nombreCat == null) return false;
+        evento.agregarCategoria(new Categoria(nombreCat, edadMin, edadMax));
+        return true;
     }
 
-    // ---------------- MÉTODO 2 ----------------
-    public void gestionarInscripciones() {
-        Scanner sc = new Scanner(System.in);
-        System.out.println("=== GESTIONAR INSCRIPCIONES ===");
-
-        System.out.print("Ingrese el nombre del corredor: ");
-        String nombre = sc.nextLine();
-
-        System.out.print("Ingrese el estado de la inscripción (Pendiente, Pagada, Confirmada): ");
-        String estado = sc.nextLine();
-
-        // Aquí solo simulamos la acción
-        System.out.println("Procesando inscripción de " + nombre + "...");
-        System.out.println("Estado de la inscripción: " + estado);
-        System.out.println(" Inscripción gestionada correctamente.\n");
-        sc.close();
+    public boolean registrarInscripcionEnEvento(Evento evento, Inscripcion inscripcion) {
+        if (evento == null || inscripcion == null) return false;
+        if (evento.buscarInscripcionPorDorsal(inscripcion.getNumeroDorsal()) != null) return false;
+        evento.agregarInscripcion(inscripcion);
+        if (inscripcion.getCorredor() != null) inscripcion.getCorredor().agregarInscripcion(inscripcion);
+        return true;
     }
 
-    // ---------------- MÉTODO 3 ----------------
-    public void registrarTiempos() {
-        Scanner sc = new Scanner(System.in);
-        System.out.println("=== REGISTRAR TIEMPOS ===");
+    public boolean confirmarPagoInscripcion(Inscripcion inscripcion) {
+        if (inscripcion == null) return false;
+        return inscripcion.confirmarPago();
+    }
 
-        System.out.print("Ingrese el ID del corredor: ");
-        int idCorredor = sc.nextInt();
-
-        System.out.print("Ingrese el tiempo individual (en minutos): ");
-        double tiempoIndividual = sc.nextDouble();
-
-        Tiempo tiempo = new Tiempo(tiempoIndividual, 0, 0, null, null, null);
-        System.out.println(" Registro de tiempo completado.\n");
-        sc.close();
+    public boolean registrarTiempos(Evento evento, int dorsal, double tIndividual, int posGeneral, int posCategoria) {
+        if (evento == null) return false;
+        Inscripcion ins = evento.buscarInscripcionPorDorsal(dorsal);
+        if (ins == null) return false;
+        Tiempo t = new Tiempo(tIndividual, posGeneral, posCategoria);
+        ins.setTiempo(t);
+        evento.agregarTiempo(t);
+        return true;
     }
 }

@@ -1,5 +1,4 @@
 package usuarios;
-import java.util.Scanner;
 
 public class Usuario {
     private int id;
@@ -14,62 +13,31 @@ public class Usuario {
         this.correo = correo;
     }
 
-    public int getId() {
-        return id;
-    }
+    public Usuario() { }
 
-    public void setId(int id) {
-    if (id > 0) {
-        this.id = id;
-    }
-    }
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public void setNombre(String nombre) {
-        if (nombre != null && !nombre.trim().isEmpty()) {
-            this.nombre = nombre;
+    public String getTelefono() { return telefono; }
+    public void setTelefono(String telefono) { this.telefono = telefono; }
+
+    public String getCorreo() { return correo; }
+    public void setCorreo(String correo) { this.correo = correo; }
+
+    public boolean actualizarDatos(String nombre, String telefono, String correo) {
+        boolean cambios = false;
+        if (nombre != null && !nombre.isBlank() && !nombre.equals(this.nombre)) {
+            this.nombre = nombre.trim(); cambios = true;
         }
-    }
-
-    public String getTelefono() {
-        return telefono;
-    }
-
-    public void setTelefono(String telefono) {
-        if (telefono != null && !telefono.trim().isEmpty()) {
-            this.telefono = telefono;
+        if (telefono != null && !telefono.isBlank() && !telefono.equals(this.telefono)) {
+            this.telefono = telefono.trim(); cambios = true;
         }
-    }
-
-    public String getCorreo() {
-        return correo;
-    }
-
-    public void setCorreo(String correo) {
-        if (correo != null && correo.contains("@")) {
-            this.correo = correo;
+        if (correo != null && !correo.isBlank() && !correo.equals(this.correo)) {
+            this.correo = correo.trim(); cambios = true;
         }
-    }
-
-    @SuppressWarnings("resource")
-    public void actualizarDatos() {
-        // Lógica para actualizar datos del usuario
-        // Actulizacion de datos de un Usuario en consola
-        Scanner recibirDatos = new Scanner(System.in);
-
-        System.out.print("Nuevo nombre: ");
-        setNombre(recibirDatos.nextLine());
-
-        System.out.print("Nuevo teléfono: ");
-        setTelefono(recibirDatos.nextLine());
-
-        System.out.print("Nuevo correo: ");
-        setCorreo(recibirDatos.nextLine());
-
-        System.out.println("✅ Datos actualizados correctamente."); 
-
+        return cambios;
     }
 }

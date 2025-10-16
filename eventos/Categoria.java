@@ -11,27 +11,14 @@ public class Categoria {
         this.edadMaxima = edadMaxima;
     }
 
-    public String getNombre() {
-        return nombre;
-    }
+    public Categoria() { }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public int getEdadMinima() {
-        return edadMinima;
-    }
+    public int getEdadMinima() { return edadMinima; }
+    public void setEdadMinima(int edadMinima) { this.edadMinima = edadMinima; }
 
-    public void setEdadMinima(int edadMinima) {
-        this.edadMinima = edadMinima;
-    }
-
-    public int getEdadMaxima() {
-        return edadMaxima;
-    }
-
-    public void setEdadMaxima(int edadMaxima) {
-        this.edadMaxima = edadMaxima;
-    }
+    public int getEdadMaxima() { return edadMaxima; }
+    public void setEdadMaxima(int edadMaxima) { this.edadMaxima = edadMaxima; }
 }
