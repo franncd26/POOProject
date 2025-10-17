@@ -149,9 +149,10 @@ public class Main {
             println("6) Registrar tiempo");
             println("7) Mostrar resumen general (mejores tiempos)");
             println("8) Mostrar resumen por categoría (Distancia)");
-            println("9) Chat General");
-            println("10) Mensajería Directa");
-            println("11) Cerrar sesión");
+            println("9) Mostrar resumen combinado (tiempo + distancia)");
+            println("10) Chat General");
+            println("11) Mensajería Directa");
+            println("12) Cerrar sesión");
             println("0) Salir");
             opt = leerEntero("Opción: ");
 
@@ -164,9 +165,10 @@ public class Main {
                 case 6 -> accionRegistrarTiempo(admin);
                 case 7 -> accionResumenGeneral();
                 case 8 -> accionResumenPorDistancia();
-                case 9 -> submenuChatGeneral();
-                case 10 -> submenuMensajeriaDirecta();
-                case 11 -> { usuarioActual = null; return; }
+                case 9 -> accionResumenGeneralTiempoYDistancia();
+                case 10 -> submenuChatGeneral();
+                case 11 -> submenuMensajeriaDirecta();
+                case 12 -> { usuarioActual = null; return; }
                 case 0 -> salida();
                 default -> println("Opción inválida.");
             }
@@ -192,9 +194,10 @@ public class Main {
             println("2) Ver mis inscripciones");
             println("3) Mostrar resumen general (mejores tiempos)");
             println("4) Mostrar resumen por categoría (Distancia)");
-            println("5) Chat General");
-            println("6) Mensajería Directa");
-            println("7) Cerrar sesión");
+            println("5) Resumen combinado (tiempo + distancia)");
+            println("6) Chat General");
+            println("7) Mensajería Directa");
+            println("8) Cerrar sesión");
             println("0) Salir");
             opt = leerEntero("Opción: ");
 
@@ -203,9 +206,10 @@ public class Main {
                 case 2 -> accionVerInscripcionesCorredor(corredor);
                 case 3 -> accionResumenGeneral();
                 case 4 -> accionResumenPorDistancia();
-                case 5 -> submenuChatGeneral();
-                case 6 -> submenuMensajeriaDirecta();
-                case 7 -> { usuarioActual = null; return; }
+                case 5 -> accionResumenGeneralTiempoYDistancia();
+                case 6 -> submenuChatGeneral();
+                case 7 -> submenuMensajeriaDirecta();
+                case 8 -> { usuarioActual = null; return; }
                 case 0 -> salida();
                 default -> println("Opción inválida.");
             }
@@ -485,8 +489,106 @@ private static void accionRegistrarTiempo(Administrador admin) {
     }
 
     // =====================================================================================
-    // Resúmenes (NUEVO)
+    // Resúmenes 
     // =====================================================================================
+    /**
+ * Resumen combinado: junta TIEMPOS + DISTANCIAS (sin filtros).
+ * Muestra una tabla por cada distancia con (# participantes, mejor, promedio, peor)
+ * y un bloque GLOBAL con los mismos agregados.
+ */
+private static void accionResumenGeneralTiempoYDistancia() {
+    titulo("Resumen combinado: Tiempo + Distancia");
+    Evento ev = seleccionarEvento();
+    if (ev == null) { println("No hay eventos."); return; }
+
+    Map<Integer, Tiempo> mapa = TIEMPOS_POR_EVENTO.get(ev.getId());
+    if (mapa == null || mapa.isEmpty()) {
+        println("No hay tiempos registrados para este evento.");
+        return;
+    }
+
+    // Distancia -> lista de tiempos válidos (segundos > 0)
+    Map<Inscripcion.Distancia, List<Double>> tiemposPorDist = new HashMap<>();
+
+    int totalParticipantes = 0;
+    double sumaGlobal = 0.0;
+    double mejorGlobal = Double.POSITIVE_INFINITY;
+    double peorGlobal = Double.NEGATIVE_INFINITY;
+
+    // Recorremos las inscripciones del evento y cruzamos con los tiempos guardados
+    for (Inscripcion ins : ev.getInscripciones()) {
+        if (ins == null) continue;
+        Tiempo t = mapa.get(ins.getId());
+        if (t == null) continue;
+
+        double seg = t.getTiempoIndividual();
+        if (seg <= 0) continue; // solo tiempos válidos
+
+        Inscripcion.Distancia dist = ins.getDistancia();
+        tiemposPorDist.putIfAbsent(dist, new ArrayList<>());
+        tiemposPorDist.get(dist).add(seg);
+
+        // Global
+        totalParticipantes++;
+        sumaGlobal += seg;
+        if (seg < mejorGlobal) mejorGlobal = seg;
+        if (seg > peorGlobal) peorGlobal = seg;
+    }
+
+    if (totalParticipantes == 0) {
+        println("No hay tiempos válidos para resumir.");
+        return;
+    }
+
+    // Encabezado tabla por distancia
+    println("");
+    println("Por distancia:");
+    println("----------------------------------------------");
+    System.out.printf("%-12s | %10s | %10s | %10s | %10s%n",
+            "Distancia", "Particip.", "Mejor", "Promedio", "Peor");
+    println("----------------------------------------------");
+
+    // Mostrar en el orden natural de las distancias (si no hay, se salta)
+    Inscripcion.Distancia[] orden = {
+            Inscripcion.Distancia.CINCO_K,
+            Inscripcion.Distancia.DIEZ_K,
+            Inscripcion.Distancia.MEDIA_MARATON,
+            Inscripcion.Distancia.MARATON
+    };
+
+    for (Inscripcion.Distancia d : orden) {
+        List<Double> ts = tiemposPorDist.get(d);
+        if (ts == null || ts.isEmpty()) continue;
+
+        double suma = 0.0;
+        double min = Double.POSITIVE_INFINITY;
+        double max = Double.NEGATIVE_INFINITY;
+        for (double x : ts) {
+            suma += x;
+            if (x < min) min = x;
+            if (x > max) max = x;
+        }
+        double prom = suma / ts.size();
+
+        System.out.printf("%-12s | %10d | %10s | %10s | %10s%n",
+                nombrarDistancia(d), ts.size(),
+                formatearSegundos(min),
+                formatearSegundos(prom),
+                formatearSegundos(max));
+    }
+
+    // Bloque global
+    println("----------------------------------------------");
+    double promedioGlobal = sumaGlobal / totalParticipantes;
+    println("");
+    println("Global (todas las distancias del evento):");
+    println("----------------------------------------------");
+    println("Participantes: " + totalParticipantes);
+    println("Mejor:        " + formatearSegundos(mejorGlobal));
+    println("Promedio:     " + formatearSegundos(promedioGlobal));
+    println("Peor:         " + formatearSegundos(peorGlobal));
+    println("----------------------------------------------");
+}
 
     /**
      * Muestra el Top N (por defecto 10) de mejores tiempos de un evento.
