@@ -147,9 +147,9 @@ public class Main {
             println("4) Crear inscripción para corredor");
             println("5) Confirmar pago / Confirmar inscripción");
             println("6) Registrar tiempo");
-            println("7) Mostrar resumen general (mejores tiempos)");
-            println("8) Mostrar resumen por categoría (Distancia)");
-            println("9) Mostrar resumen combinado (tiempo + distancia)");
+            println("7) Mostrar resumen general (por categoria)");
+            println("8) Mostrar resumen por categoría y distancia");
+            println("9) Mostrar resumen de todos los eventos");
             println("10) Chat General");
             println("11) Mensajería Directa");
             println("12) Cerrar sesión");
@@ -192,9 +192,9 @@ public class Main {
             titulo("Menú Corredor - " + corredor.getNombre());
             println("1) Ver eventos disponibles");
             println("2) Ver mis inscripciones");
-            println("3) Mostrar resumen general (mejores tiempos)");
-            println("4) Mostrar resumen por categoría (Distancia)");
-            println("5) Resumen combinado (tiempo + distancia)");
+            println("3) Mostrar resumen general (por categoria)");
+            println("4) Mostrar resumen por categoría y distancia)");
+            println("5) Resumen de todos los eventos");
             println("6) Chat General");
             println("7) Mensajería Directa");
             println("8) Cerrar sesión");
@@ -397,8 +397,8 @@ public class Main {
         if (target == null) { println("No existe esa inscripción."); return; }
 
         println("Estado actual: " + target.getEstado());
-        println("1) Confirmar pago (PENDIENTE→PAGADO)");
-        println("2) Confirmar inscripción (PAGADO→CONFIRMADO)");
+        println("1) Confirmar pago (PENDIENTE a PAGADO)");
+        println("2) Confirmar inscripción (PAGADO a CONFIRMADO)");
         int o = leerEntero("Opción: ");
         try {
             if (o == 1) {
@@ -454,7 +454,7 @@ private static void accionRegistrarTiempo(Administrador admin) {
         return;
     }
 
-    double tiempoSeg = leerDouble("Tiempo (segundos ≥ 0): ");
+    double tiempoSeg = leerDouble("Tiempo (segundos mayor a 0): ");
 
     try {
         // Posiciones en 0 como acordado
@@ -496,99 +496,105 @@ private static void accionRegistrarTiempo(Administrador admin) {
  * Muestra una tabla por cada distancia con (# participantes, mejor, promedio, peor)
  * y un bloque GLOBAL con los mismos agregados.
  */
+/**
+ * Vista GENERAL de todos los tiempos registrados en TODOS los eventos.
+ * No pide filtros ni top N. Muestra una tabla única (Pos, Evento, Corredor, Dorsal, Distancia, Tiempo)
+ * ordenada por mejor tiempo, y al final estadísticas globales.
+ */
 private static void accionResumenGeneralTiempoYDistancia() {
-    titulo("Resumen combinado: Tiempo + Distancia");
-    Evento ev = seleccionarEvento();
-    if (ev == null) { println("No hay eventos."); return; }
+    titulo("Resumen general de tiempos (TODOS los eventos)");
 
-    Map<Integer, Tiempo> mapa = TIEMPOS_POR_EVENTO.get(ev.getId());
-    if (mapa == null || mapa.isEmpty()) {
-        println("No hay tiempos registrados para este evento.");
+    if (EVENTOS.isEmpty()) {
+        println("No hay eventos registrados.");
         return;
     }
 
-    // Distancia -> lista de tiempos válidos (segundos > 0)
-    Map<Inscripcion.Distancia, List<Double>> tiemposPorDist = new HashMap<>();
-
-    int totalParticipantes = 0;
-    double sumaGlobal = 0.0;
-    double mejorGlobal = Double.POSITIVE_INFINITY;
-    double peorGlobal = Double.NEGATIVE_INFINITY;
-
-    // Recorremos las inscripciones del evento y cruzamos con los tiempos guardados
-    for (Inscripcion ins : ev.getInscripciones()) {
-        if (ins == null) continue;
-        Tiempo t = mapa.get(ins.getId());
-        if (t == null) continue;
-
-        double seg = t.getTiempoIndividual();
-        if (seg <= 0) continue; // solo tiempos válidos
-
-        Inscripcion.Distancia dist = ins.getDistancia();
-        tiemposPorDist.putIfAbsent(dist, new ArrayList<>());
-        tiemposPorDist.get(dist).add(seg);
-
-        // Global
-        totalParticipantes++;
-        sumaGlobal += seg;
-        if (seg < mejorGlobal) mejorGlobal = seg;
-        if (seg > peorGlobal) peorGlobal = seg;
-    }
-
-    if (totalParticipantes == 0) {
-        println("No hay tiempos válidos para resumir.");
-        return;
-    }
-
-    // Encabezado tabla por distancia
-    println("");
-    println("Por distancia:");
-    println("----------------------------------------------");
-    System.out.printf("%-12s | %10s | %10s | %10s | %10s%n",
-            "Distancia", "Particip.", "Mejor", "Promedio", "Peor");
-    println("----------------------------------------------");
-
-    // Mostrar en el orden natural de las distancias (si no hay, se salta)
-    Inscripcion.Distancia[] orden = {
-            Inscripcion.Distancia.CINCO_K,
-            Inscripcion.Distancia.DIEZ_K,
-            Inscripcion.Distancia.MEDIA_MARATON,
-            Inscripcion.Distancia.MARATON
-    };
-
-    for (Inscripcion.Distancia d : orden) {
-        List<Double> ts = tiemposPorDist.get(d);
-        if (ts == null || ts.isEmpty()) continue;
-
-        double suma = 0.0;
-        double min = Double.POSITIVE_INFINITY;
-        double max = Double.NEGATIVE_INFINITY;
-        for (double x : ts) {
-            suma += x;
-            if (x < min) min = x;
-            if (x > max) max = x;
+    // Recolectar todas las filas válidas (tiempo > 0) de todos los eventos
+    class Row {
+        int evId;
+        String evNombre;
+        Inscripcion ins;
+        Tiempo t;
+        Row(int evId, String evNombre, Inscripcion ins, Tiempo t) {
+            this.evId = evId; this.evNombre = evNombre; this.ins = ins; this.t = t;
         }
-        double prom = suma / ts.size();
+    }
+    List<Row> filas = new ArrayList<>();
 
-        System.out.printf("%-12s | %10d | %10s | %10s | %10s%n",
-                nombrarDistancia(d), ts.size(),
-                formatearSegundos(min),
-                formatearSegundos(prom),
-                formatearSegundos(max));
+    for (Map.Entry<Integer, Map<Integer, Tiempo>> eEv : TIEMPOS_POR_EVENTO.entrySet()) {
+        int evId = eEv.getKey();
+        Evento ev = EVENTOS.get(evId);
+        if (ev == null) continue; // evento pudo ser removido
+
+        Map<Integer, Tiempo> mapa = eEv.getValue();
+        if (mapa == null || mapa.isEmpty()) continue;
+
+        for (Map.Entry<Integer, Tiempo> eIns : mapa.entrySet()) {
+            int insId = eIns.getKey();
+            Tiempo t = eIns.getValue();
+            if (t == null) continue;
+            double seg = t.getTiempoIndividual();
+            if (seg <= 0) continue;
+
+            // Buscar la inscripción dentro del evento (simple y suficiente aquí)
+            Inscripcion ins = ev.getInscripciones().stream()
+                    .filter(i -> i.getId() == insId)
+                    .findFirst().orElse(null);
+            if (ins == null) continue;
+
+            filas.add(new Row(evId, ev.getNombre(), ins, t));
+        }
     }
 
-    // Bloque global
-    println("----------------------------------------------");
-    double promedioGlobal = sumaGlobal / totalParticipantes;
-    println("");
-    println("Global (todas las distancias del evento):");
-    println("----------------------------------------------");
-    println("Participantes: " + totalParticipantes);
-    println("Mejor:        " + formatearSegundos(mejorGlobal));
-    println("Promedio:     " + formatearSegundos(promedioGlobal));
-    println("Peor:         " + formatearSegundos(peorGlobal));
-    println("----------------------------------------------");
+    if (filas.isEmpty()) {
+        println("No hay tiempos válidos registrados en ningún evento.");
+        return;
+    }
+
+    // Ordenar globalmente por mejor tiempo (ascendente)
+    filas.sort(Comparator.comparingDouble(r -> r.t.getTiempoIndividual()));
+
+    // Encabezado y tabla
+    println(String.format("%-4s %-28s %-20s %-8s %-12s %-10s",
+            "Pos", "Evento", "Corredor", "Dorsal", "Distancia", "Tiempo"));
+    println("------------------------------------------------------------------------------------------");
+
+    int pos = 1;
+    double suma = 0.0;
+    double mejor = Double.POSITIVE_INFINITY;
+    double peor = Double.NEGATIVE_INFINITY;
+
+    for (Row r : filas) {
+        double s = r.t.getTiempoIndividual();
+        suma += s;
+        if (s < mejor) mejor = s;
+        if (s > peor) peor = s;
+
+        String etiquetaEvento = ("[" + r.evId + "] " + r.evNombre);
+        if (etiquetaEvento.length() > 28) etiquetaEvento = etiquetaEvento.substring(0, 28);
+
+        println(String.format("%-4d %-28s %-20s %-8d %-12s %-10s",
+                pos++,
+                etiquetaEvento,
+                r.ins.getCorredor().getNombre(),
+                r.ins.getNumeroDorsal(),
+                nombrarDistancia(r.ins.getDistancia()),
+                formatearSegundos(s)
+        ));
+    }
+
+    // Estadísticos globales
+    int total = filas.size();
+    double promedio = suma / total;
+    println("------------------------------------------------------------------------------------------");
+    println("Global (todos los eventos y distancias):");
+    println("Participantes con tiempo: " + total);
+    println("Mejor:                    " + formatearSegundos(mejor));
+    println("Promedio:                 " + formatearSegundos(promedio));
+    println("Peor:                     " + formatearSegundos(peor));
+    println("------------------------------------------------------------------------------------------");
 }
+
 
     /**
      * Muestra el Top N (por defecto 10) de mejores tiempos de un evento.
