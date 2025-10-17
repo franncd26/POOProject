@@ -89,7 +89,7 @@ public class Main {
             Usuario u = USUARIOS.get(cedula);
 
             if (u == null) {
-                String nombre = leerLinea("Nombre: ");
+                String nombre = leerObligatorio("Nombre: ");
                 String tel = leerLinea("Teléfono (opcional): ");
                 String correo = leerLinea("Correo (opcional): ");
 
@@ -147,9 +147,11 @@ public class Main {
             println("4) Crear inscripción para corredor");
             println("5) Confirmar pago / Confirmar inscripción");
             println("6) Registrar tiempo");
-            println("7) Chat General");
-            println("8) Mensajería Directa");
-            println("9) Cerrar sesión");
+            println("7) Mostrar resumen general (mejores tiempos)");
+            println("8) Mostrar resumen por categoría (Distancia)");
+            println("9) Chat General");
+            println("10) Mensajería Directa");
+            println("11) Cerrar sesión");
             println("0) Salir");
             opt = leerEntero("Opción: ");
 
@@ -160,9 +162,11 @@ public class Main {
                 case 4 -> accionCrearInscripcion(admin);
                 case 5 -> accionConfirmaciones();
                 case 6 -> accionRegistrarTiempo(admin);
-                case 7 -> submenuChatGeneral();
-                case 8 -> submenuMensajeriaDirecta();
-                case 9 -> { usuarioActual = null; return; }
+                case 7 -> accionResumenGeneral();
+                case 8 -> accionResumenPorDistancia();
+                case 9 -> submenuChatGeneral();
+                case 10 -> submenuMensajeriaDirecta();
+                case 11 -> { usuarioActual = null; return; }
                 case 0 -> salida();
                 default -> println("Opción inválida.");
             }
@@ -186,18 +190,22 @@ public class Main {
             titulo("Menú Corredor - " + corredor.getNombre());
             println("1) Ver eventos disponibles");
             println("2) Ver mis inscripciones");
-            println("3) Chat General");
-            println("4) Mensajería Directa");
-            println("5) Cerrar sesión");
+            println("3) Mostrar resumen general (mejores tiempos)");
+            println("4) Mostrar resumen por categoría (Distancia)");
+            println("5) Chat General");
+            println("6) Mensajería Directa");
+            println("7) Cerrar sesión");
             println("0) Salir");
             opt = leerEntero("Opción: ");
 
             switch (opt) {
                 case 1 -> accionListarEventosConResumen();
                 case 2 -> accionVerInscripcionesCorredor(corredor);
-                case 3 -> submenuChatGeneral();
-                case 4 -> submenuMensajeriaDirecta();
-                case 5 -> { usuarioActual = null; return; }
+                case 3 -> accionResumenGeneral();
+                case 4 -> accionResumenPorDistancia();
+                case 5 -> submenuChatGeneral();
+                case 6 -> submenuMensajeriaDirecta();
+                case 7 -> { usuarioActual = null; return; }
                 case 0 -> salida();
                 default -> println("Opción inválida.");
             }
@@ -216,7 +224,7 @@ public class Main {
      */
     private static void accionCrearEvento(Administrador admin) {
         titulo("Crear evento");
-        String nombre = leerLinea("Nombre: ");
+        String nombre = leerObligatorio("Nombre: ");
         String descripcion = leerLinea("Descripción (opcional): ");
 
         // Pedir fecha real en formato AAAA-MM-DD
@@ -320,7 +328,7 @@ public class Main {
         Corredor cor;
         if (u == null) {
             println("No existe esa cédula. Creemos al corredor:");
-            String nombre = leerLinea("Nombre: ");
+            String nombre = leerObligatorio("Nombre: ");
             String tel = leerLinea("Tel (opcional): ");
             String correo = leerLinea("Correo (opcional): ");
             cor = new Corredor(ced, nombre, tel, correo);
@@ -404,39 +412,60 @@ public class Main {
     }
 
     /**
-     * Registra un tiempo para una inscripción y lo almacena en memoria
-     * bajo {@code TIEMPOS_POR_EVENTO}.
+     * Registra un tiempo para una inscripción y lo almacena en memoria bajo {@code TIEMPOS_POR_EVENTO}.
+     * <p><b>Cambio solicitado:</b> ahora solo pide el tiempo y posiciona general/categoría en 0.</p>
      *
      * @param admin administrador actual.
      */
-    private static void accionRegistrarTiempo(Administrador admin) {
-        titulo("Registrar tiempo");
-        Evento ev = seleccionarEvento();
-        if (ev == null || ev.getInscripciones().isEmpty()) {
-            println("No hay inscripciones en este evento.");
-            return;
-        }
-        listarInscripciones(ev);
-        int idIns = leerEntero("ID de inscripción: ");
-        Inscripcion ins = ev.getInscripciones().stream()
-                .filter(i -> i.getId() == idIns)
-                .findFirst().orElse(null);
-        if (ins == null) { println("No existe esa inscripción."); return; }
-
-        double tiempoSeg = leerDouble("Tiempo (segundos ≥ 0): ");
-        int posGen = leerEntero("Posición general (0 si no asignada): ");
-        int posCat = leerEntero("Posición por categoría (0 si no asignada): ");
-
-        try {
-            Tiempo t = admin.registrarTiempoParaInscripcion(ins, tiempoSeg, posGen, posCat);
-            TIEMPOS_POR_EVENTO
-                    .computeIfAbsent(ev.getId(), k -> new HashMap<>())
-                    .put(ins.getId(), t);
-            println("Tiempo registrado y guardado: " + t);
-        } catch (Exception ex) {
-            println("Error: " + ex.getMessage());
-        }
+    /**
+ * Registra un tiempo para una inscripción y lo almacena en memoria bajo {@code TIEMPOS_POR_EVENTO}.
+ * <p><b>Cambio solicitado:</b> ahora solo pide el tiempo y posiciona general/categoría en 0.</p>
+ *
+ * @param admin administrador actual.
+ */
+private static void accionRegistrarTiempo(Administrador admin) {
+    titulo("Registrar tiempo");
+    Evento ev = seleccionarEvento();
+    if (ev == null || ev.getInscripciones().isEmpty()) {
+        println("No hay inscripciones en este evento.");
+        return;
     }
+
+    // ✅ Nueva validación: no permitir registrar si el evento está CERRADO
+    if (ev.getEstado() == Evento.EstadoEvento.CERRADO) {
+        println("No se pueden registrar tiempos: el evento está CERRADO.");
+        return;
+    }
+
+    listarInscripciones(ev);
+    int idIns = leerEntero("ID de inscripción: ");
+    Inscripcion ins = ev.getInscripciones().stream()
+            .filter(i -> i.getId() == idIns)
+            .findFirst().orElse(null);
+    if (ins == null) { println("No existe esa inscripción."); return; }
+
+    // ✅ Nueva validación: solo inscripciones CONFIRMADAS
+    if (ins.getEstado() != Inscripcion.Estado.CONFIRMADO) {
+        println("Solo se pueden registrar tiempos para inscripciones en estado CONFIRMADO.");
+        return;
+    }
+
+    double tiempoSeg = leerDouble("Tiempo (segundos ≥ 0): ");
+
+    try {
+        // Posiciones en 0 como acordado
+        int posGen = 0;
+        int posCat = 0;
+        Tiempo t = admin.registrarTiempoParaInscripcion(ins, tiempoSeg, posGen, posCat);
+        TIEMPOS_POR_EVENTO
+                .computeIfAbsent(ev.getId(), k -> new HashMap<>())
+                .put(ins.getId(), t);
+        println("Tiempo registrado y guardado: " + t);
+    } catch (Exception ex) {
+        println("Error: " + ex.getMessage());
+    }
+}
+
 
     /**
      * Muestra en consola las inscripciones del corredor actual.
@@ -453,6 +482,133 @@ public class Main {
         for (Inscripcion i : lista) {
             println(i.toString());
         }
+    }
+
+    // =====================================================================================
+    // Resúmenes (NUEVO)
+    // =====================================================================================
+
+    /**
+     * Muestra el Top N (por defecto 10) de mejores tiempos de un evento.
+     * Orden ascendente por tiempo (menor = mejor).
+     */
+    private static void accionResumenGeneral() {
+        titulo("Resumen general - Mejores tiempos");
+        Evento ev = seleccionarEvento();
+        if (ev == null) { println("No hay eventos."); return; }
+
+        Map<Integer, Tiempo> mapa = TIEMPOS_POR_EVENTO.get(ev.getId());
+        if (mapa == null || mapa.isEmpty()) {
+            println("No hay tiempos registrados para este evento.");
+            return;
+        }
+
+        int topN = leerEntero("¿Cuántos mostrar? (ej. 10): ");
+        // Construir pares (Inscripcion, Tiempo)
+        List<Map.Entry<Inscripcion, Tiempo>> pares = new ArrayList<>();
+        for (Inscripcion ins : ev.getInscripciones()) {
+            Tiempo t = mapa.get(ins.getId());
+            if (t != null) pares.add(new AbstractMap.SimpleEntry<>(ins, t));
+        }
+        if (pares.isEmpty()) {
+            println("No hay tiempos vinculados a inscripciones de este evento.");
+            return;
+        }
+
+        pares.sort(Comparator.comparingDouble(e -> e.getValue().getTiempoIndividual()));
+        imprimirTablaTiempos(pares, Math.max(1, topN));
+    }
+
+    /**
+     * Muestra el Top N de mejores tiempos filtrado por “categoría” entendida como Distancia.
+     * (5K, 10K, Media Maratón, Maratón).
+     */
+    private static void accionResumenPorDistancia() {
+        titulo("Resumen por categoría (Distancia)");
+        Evento ev = seleccionarEvento();
+        if (ev == null) { println("No hay eventos."); return; }
+
+        Map<Integer, Tiempo> mapa = TIEMPOS_POR_EVENTO.get(ev.getId());
+        if (mapa == null || mapa.isEmpty()) {
+            println("No hay tiempos registrados para este evento.");
+            return;
+        }
+
+        mostrarDistancias();
+        int dOpt = leerEntero("Selecciona la distancia (1..4): ");
+        Inscripcion.Distancia dist = switch (dOpt) {
+            case 1 -> Inscripcion.Distancia.CINCO_K;
+            case 2 -> Inscripcion.Distancia.DIEZ_K;
+            case 3 -> Inscripcion.Distancia.MEDIA_MARATON;
+            case 4 -> Inscripcion.Distancia.MARATON;
+            default -> null;
+        };
+        if (dist == null) { println("Opción inválida."); return; }
+
+        int topN = leerEntero("¿Cuántos mostrar? (ej. 10): ");
+
+        List<Map.Entry<Inscripcion, Tiempo>> pares = new ArrayList<>();
+        for (Inscripcion ins : ev.getInscripciones()) {
+            if (ins.getDistancia() == dist) {
+                Tiempo t = mapa.get(ins.getId());
+                if (t != null) pares.add(new AbstractMap.SimpleEntry<>(ins, t));
+            }
+        }
+        if (pares.isEmpty()) {
+            println("No hay tiempos para la distancia seleccionada.");
+            return;
+        }
+
+        pares.sort(Comparator.comparingDouble(e -> e.getValue().getTiempoIndividual()));
+        imprimirTablaTiempos(pares, Math.max(1, topN));
+    }
+
+    /**
+     * Imprime tabla compacta de tiempos: Pos, Corredor, Dorsal, Distancia y Tiempo formateado.
+     *
+     * @param pares lista de pares (Inscripcion, Tiempo) ordenada ascendente por tiempo.
+     * @param topN  cantidad a mostrar.
+     */
+    private static void imprimirTablaTiempos(List<Map.Entry<Inscripcion, Tiempo>> pares, int topN) {
+        println(String.format("%-4s %-20s %-8s %-12s %-10s", "Pos", "Corredor", "Dorsal", "Distancia", "Tiempo"));
+        println("---------------------------------------------------------------");
+        for (int i = 0; i < Math.min(topN, pares.size()); i++) {
+            var e = pares.get(i);
+            Inscripcion ins = e.getKey();
+            Tiempo t = e.getValue();
+            String tiempoFmt = formatearSegundos(t.getTiempoIndividual());
+            println(String.format("%-4d %-20s %-8d %-12s %-10s",
+                    (i + 1),
+                    ins.getCorredor().getNombre(),
+                    ins.getNumeroDorsal(),
+                    nombrarDistancia(ins.getDistancia()),
+                    tiempoFmt
+            ));
+        }
+    }
+
+    /**
+     * Convierte segundos a formato mm:ss (o hh:mm:ss si aplica).
+     */
+    private static String formatearSegundos(double segundos) {
+        long total = (long) Math.floor(segundos);
+        long h = total / 3600;
+        long m = (total % 3600) / 60;
+        long s = total % 60;
+        if (h > 0) return String.format("%d:%02d:%02d", h, m, s);
+        return String.format("%02d:%02d", m, s);
+    }
+
+    /**
+     * Nombre legible para la distancia.
+     */
+    private static String nombrarDistancia(Inscripcion.Distancia d) {
+        return switch (d) {
+            case CINCO_K -> "5K";
+            case DIEZ_K -> "10K";
+            case MEDIA_MARATON -> "Media";
+            case MARATON -> "Maratón";
+        };
     }
 
     // =====================================================================================
@@ -497,12 +653,17 @@ public class Main {
                         println("Debes unirte al chat antes de enviar mensajes.");
                     } else {
                         String texto = leerLinea("Mensaje: ");
-                        try {
-                            CHAT_GENERAL.enviarMensaje(usuarioActual, texto);
-                            println("Mensaje enviado.");
-                        } catch (Exception ex) {
-                            println("Error: " + ex.getMessage());
+                        if (texto.isBlank()) {
+                            println("El mensaje no puede estar vacío.");
+                        } else {
+                            try {
+                                CHAT_GENERAL.enviarMensaje(usuarioActual, texto);
+                                println("Mensaje enviado.");
+                            } catch (Exception ex) {
+                                println("Error: " + ex.getMessage());
+                            }
                         }
+
                     }
                 }
                 case 4 -> {
@@ -581,12 +742,17 @@ public class Main {
         MensajeriaDirecta dm = seleccionarDMDelUsuarioActual();
         if (dm == null) { println("No tienes DMs activos."); return; }
         String texto = leerLinea("Mensaje: ");
-        try {
-            dm.enviarMensaje(usuarioActual, texto);
-            println("Mensaje enviado.");
-        } catch (Exception ex) {
-            println("Error: " + ex.getMessage());
+        if (texto.isBlank()) {
+            println("El mensaje no puede estar vacío.");
+        } else {
+            try {
+                CHAT_GENERAL.enviarMensaje(usuarioActual, texto);
+                println("Mensaje enviado.");
+            } catch (Exception ex) {
+                println("Error: " + ex.getMessage());
+            }
         }
+
     }
 
     /**
@@ -792,6 +958,22 @@ public class Main {
             }
         }
     }
+        /**
+     * Lee una línea obligatoria (no vacía). Repite hasta que haya texto.
+     *
+     * @param prompt mensaje de prompt.
+     * @return texto no vacío.
+     */
+    private static String leerObligatorio(String prompt) {
+        while (true) {
+            String s = leerLinea(prompt);
+            if (s != null && !s.isBlank()) {
+                return s;
+            }
+            System.out.println("Este campo es obligatorio. Intenta de nuevo.");
+        }
+    }
+
 
     /**
      * Imprime un título seccionado.
