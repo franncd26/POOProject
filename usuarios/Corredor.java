@@ -1,5 +1,6 @@
 package usuarios;
 
+import eventos.Categoria;
 import eventos.Evento;
 import eventos.Inscripcion;
 
@@ -19,68 +20,141 @@ import java.util.List;
  * </ul>
  *
  * @author
- * @version 1.0
+ * @version 1.2
  */
 public class Corredor extends Usuario {
 
     /** Lista de inscripciones del corredor. */
     private final List<Inscripcion> inscripciones = new ArrayList<>();
 
+    /** Edad del corredor en años (0–127). Usa {@code byte} para menor huella de memoria. */
+    private byte edad;
+
+    /** Nombre del contacto de emergencia del corredor. */
+    private String nombreContactoEmergencia;
+
+    /** Parentesco del contacto de emergencia con el corredor (p. ej. Madre, Padre, Esposo/a). */
+    private String parentescoContactoEmergencia;
+
+    /** Teléfono del contacto de emergencia del corredor. */
+    private String telefonoContactoEmergencia;
+
+    // =======================
+    // Constructores
+    // =======================
+
     /**
      * Crea un nuevo {@code Corredor}.
      *
      * @param id       identificador único (&gt; 0).
-     * @param nombre   nombre completo (no nulo/ni vacío).
-     * @param telefono teléfono (no nulo; puede ser vacío).
-     * @param correo   correo (no nulo; puede ser vacío).
+     * @param nombre   nombre del corredor (no nulo/ni en blanco).
+     * @param correo   correo del corredor (no nulo/ni en blanco).
+     * @param telefono teléfono del corredor (opcional).
+     * @param edad     edad en años (0–127).
+     */
+    public Corredor(int id, String nombre, String correo, String telefono, byte edad) {
+        super(id, nombre, correo, telefono);
+        setEdad(edad);
+    }
+
+    /**
+     * Constructor alterno sin contacto de emergencia (se puede completar luego con setters).
+     *
+     * @param id       identificador único (&gt; 0).
+     * @param nombre   nombre del corredor.
+     * @param correo   correo del corredor.
+     * @param edad     edad en años (0–127).
+     */
+    public Corredor(int id, String nombre, String correo, byte edad) {
+        super(id, nombre, correo, null);
+        setEdad(edad);
+    }
+
+    /**
+     * Constructor de compatibilidad para no romper flujos existentes donde aún no se solicita la edad.
+     * <p>La edad deberá establecerse luego con {@link #setEdad(byte)}.</p>
+     *
+     * @param id       identificador único (&gt; 0).
+     * @param nombre   nombre del corredor.
+     * @param telefono teléfono del corredor (opcional).
+     * @param correo   correo del corredor (opcional).
      */
     public Corredor(int id, String nombre, String telefono, String correo) {
-        super(id, nombre, telefono, correo);
+        super(id, nombre, correo, telefono);
+        // La edad quedará con su valor por defecto (0) hasta que se llame a setEdad(...)
     }
 
-    // ------------------------------------------------------------
-    // Gestión de inscripciones (sin I/O)
-    // ------------------------------------------------------------
+    // =======================
+    // Getters / Setters
+    // =======================
 
     /**
-     * Agrega una inscripción a la lista del corredor.
-     * <p>Reglas:</p>
-     * <ul>
-     *   <li>No se permiten inscripciones nulas.</li>
-     *   <li>La inscripción debe pertenecer a este corredor.</li>
-     *   <li>No se permiten dos inscripciones al <b>mismo evento</b> para el mismo corredor.</li>
-     * </ul>
-     *
-     * @param inscripcion inscripción a agregar.
-     * @throws IllegalArgumentException si la inscripción es nula o pertenece a otro corredor.
-     * @throws IllegalStateException si ya existe una inscripción a ese evento.
+     * Devuelve la edad del corredor.
+     * @return edad en años (0–127).
      */
-    public void agregarInscripcion(Inscripcion inscripcion) {
-        if (inscripcion == null) throw new IllegalArgumentException("La inscripción no puede ser nula.");
-        if (inscripcion.getCorredor() != this)
-            throw new IllegalArgumentException("La inscripción debe pertenecer a este corredor.");
-
-        Evento ev = inscripcion.getEvento();
-        if (ev == null) throw new IllegalArgumentException("La inscripción debe referenciar un evento.");
-
-        if (tieneInscripcionEnEvento(ev)) {
-            throw new IllegalStateException("Ya existe una inscripción del corredor en este evento.");
-        }
-        inscripciones.add(inscripcion);
+    public byte getEdad() {
+        return edad;
     }
 
     /**
-     * Indica si el corredor ya posee una inscripción para un evento dado.
-     * @param evento evento a verificar (no nulo).
-     * @return {@code true} si ya está inscrito; de lo contrario, {@code false}.
-     * @throws IllegalArgumentException si {@code evento} es nulo.
+     * Establece la edad del corredor.
+     * <p>Debe estar en el rango 0–127.</p>
+     * @param edad edad en años.
+     * @throws IllegalArgumentException si la edad es negativa.
      */
-    public boolean tieneInscripcionEnEvento(Evento evento) {
-        if (evento == null) throw new IllegalArgumentException("Evento no puede ser nulo.");
-        for (Inscripcion i : inscripciones) {
-            if (i != null && i.getEvento() == evento) return true;
+    public void setEdad(byte edad) {
+        if (edad < 0) {
+            throw new IllegalArgumentException("La edad no puede ser negativa.");
         }
-        return false;
+        this.edad = edad;
+    }
+
+    /**
+     * Nombre del contacto de emergencia.
+     * @return nombre (puede ser {@code null} si no se ha definido).
+     */
+    public String getNombreContactoEmergencia() {
+        return nombreContactoEmergencia;
+    }
+
+    /**
+     * Define el nombre del contacto de emergencia.
+     * @param nombreContactoEmergencia nombre del contacto (puede ser {@code null}).
+     */
+    public void setNombreContactoEmergencia(String nombreContactoEmergencia) {
+        this.nombreContactoEmergencia = nombreContactoEmergencia;
+    }
+
+    /**
+     * Parentesco del contacto de emergencia.
+     * @return parentesco (puede ser {@code null} si no se ha definido).
+     */
+    public String getParentescoContactoEmergencia() {
+        return parentescoContactoEmergencia;
+    }
+
+    /**
+     * Define el parentesco del contacto de emergencia.
+     * @param parentescoContactoEmergencia parentesco (p. ej. Madre, Padre, Hermano, Esposo/a).
+     */
+    public void setParentescoContactoEmergencia(String parentescoContactoEmergencia) {
+        this.parentescoContactoEmergencia = parentescoContactoEmergencia;
+    }
+
+    /**
+     * Teléfono del contacto de emergencia.
+     * @return teléfono (puede ser {@code null} si no se ha definido).
+     */
+    public String getTelefonoContactoEmergencia() {
+        return telefonoContactoEmergencia;
+    }
+
+    /**
+     * Define el teléfono del contacto de emergencia.
+     * @param telefonoContactoEmergencia número telefónico del contacto (puede ser {@code null}).
+     */
+    public void setTelefonoContactoEmergencia(String telefonoContactoEmergencia) {
+        this.telefonoContactoEmergencia = telefonoContactoEmergencia;
     }
 
     /**
@@ -91,50 +165,58 @@ public class Corredor extends Usuario {
         return Collections.unmodifiableList(inscripciones);
     }
 
+    // =======================
+    // Lógica de validación de categoría por edad
+    // =======================
+
     /**
-     * Obtiene las inscripciones filtradas por estado.
-     * @param estado estado a filtrar (no nulo).
-     * @return lista inmutable con las inscripciones en ese estado.
+     * Verifica si el corredor puede inscribirse a un rango de edad dado.
+     *
+     * @param edadMin edad mínima inclusive.
+     * @param edadMax edad máxima inclusive.
+     * @return {@code true} si {@code edadMin <= edad <= edadMax}; {@code false} en caso contrario.
      */
-    public List<Inscripcion> getInscripcionesPorEstado(Inscripcion.Estado estado) {
-        if (estado == null) throw new IllegalArgumentException("Estado no puede ser nulo.");
-        List<Inscripcion> res = new ArrayList<>();
-        for (Inscripcion i : inscripciones) {
-            if (i != null && i.getEstado() == estado) res.add(i);
-        }
-        return Collections.unmodifiableList(res);
+    public boolean puedeInscribirseEn(int edadMin, int edadMax) {
+        int e = Byte.toUnsignedInt(this.edad);
+        return e >= edadMin && e <= edadMax;
     }
 
     /**
-     * Elimina una inscripción del corredor por ID.
-     * @param idInscripcion id a eliminar.
-     * @return {@code true} si se eliminó; {@code false} si no existía.
+     * Verifica si el corredor puede inscribirse a la {@link Categoria} indicada según su edad.
+     * <p>Usa los getters {@code getEdadMin()} y {@code getEdadMax()} esperados en {@link Categoria}.</p>
+     *
+     * @param categoria categoría objetivo (no {@code null}).
+     * @return {@code true} si la edad del corredor está en el rango de la categoría.
+     * @throws IllegalArgumentException si {@code categoria} es {@code null}.
      */
-    public boolean removerInscripcionPorId(int idInscripcion) {
-        for (int idx = 0; idx < inscripciones.size(); idx++) {
-            Inscripcion i = inscripciones.get(idx);
-            if (i != null && i.getId() == idInscripcion) {
-                inscripciones.remove(idx);
-                return true;
+    public boolean puedeInscribirseEn(Categoria categoria) {
+        if (categoria == null) {
+            throw new IllegalArgumentException("La categoría no puede ser null.");
+        }
+        int min = categoria.getEdadMin();
+        int max = categoria.getEdadMax();
+        return puedeInscribirseEn(min, max);
+    }
+
+    // =======================
+    // (Opcional) Utilidades internas de inscripciones
+    // =======================
+
+    /**
+     * Agrega una inscripción si no existe otra del mismo evento para este corredor.
+     * <p>No realiza I/O ni valida pagos; la unicidad de dorsal corresponde al {@link Evento}.</p>
+     *
+     * @param inscripcion la inscripción a agregar.
+     * @return {@code true} si se agregó; {@code false} si ya existía una inscripción al mismo evento.
+     * @throws IllegalArgumentException si {@code inscripcion} es {@code null}.
+     */
+    public boolean agregarInscripcion(Inscripcion inscripcion) {
+        if (inscripcion == null) throw new IllegalArgumentException("La inscripción no puede ser null.");
+        for (Inscripcion i : inscripciones) {
+            if (i.getEvento() != null && i.getEvento().equals(inscripcion.getEvento())) {
+                return false; // ya existe una inscripción para ese evento
             }
         }
-        return false;
-    }
-
-    // ------------------------------------------------------------
-    // equals / hashCode / toString (hereda de Usuario)
-    // ------------------------------------------------------------
-
-    /**
-     * Representación legible del corredor.
-     * @return cadena con id y nombre.
-     */
-    @Override
-    public String toString() {
-        return "Corredor{" +
-                "id=" + getId() +
-                ", nombre='" + getNombre() + '\'' +
-                ", inscripciones=" + inscripciones.size() +
-                '}';
+        return inscripciones.add(inscripcion);
     }
 }
