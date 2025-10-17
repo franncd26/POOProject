@@ -101,6 +101,23 @@ public class Main {
                     u = new Corredor(cedula, nombre, tel, correo);
                     USUARIOS.put(cedula, u);
                     println("Creado y autenticado como Corredor.");
+
+                    // >>> Edad y contacto de emergencia
+                    byte edad = leerByteRango("Edad : ", (byte) 0, (byte) 127, SC);
+                    ((Corredor) u).setEdad(edad);
+
+                    System.out.print("Nombre del contacto de emergencia: ");
+                    String nombreCE = SC.nextLine().trim();
+                    ((Corredor) u).setNombreContactoEmergencia(nombreCE.isEmpty() ? null : nombreCE);
+
+                    System.out.print("Parentesco del contacto de emergencia: ");
+                    String parentescoCE = SC.nextLine().trim();
+                    ((Corredor) u).setParentescoContactoEmergencia(parentescoCE.isEmpty() ? null : parentescoCE);
+
+                    System.out.print("Teléfono del contacto de emergencia: ");
+                    String telCE = SC.nextLine().trim();
+                    ((Corredor) u).setTelefonoContactoEmergencia(telCE.isEmpty() ? null : telCE);
+                    // <<< END
                 }
             } else {
                 println("Bienvenido de nuevo, " + u.getNombre() + " (" + (u instanceof Administrador ? "Admin" : "Corredor") + ")");
@@ -149,7 +166,7 @@ public class Main {
             println("6) Registrar tiempo");
             println("7) Mostrar resumen general (por categoria)");
             println("8) Mostrar resumen por categoría y distancia");
-            println("9) Mostrar resumen de todos los eventos");
+            println("9) Mostrar resumen de todos los eventos)");
             println("10) Chat General");
             println("11) Mensajería Directa");
             println("12) Cerrar sesión");
@@ -193,7 +210,7 @@ public class Main {
             println("1) Ver eventos disponibles");
             println("2) Ver mis inscripciones");
             println("3) Mostrar resumen general (por categoria)");
-            println("4) Mostrar resumen por categoría y distancia)");
+            println("4) Mostrar resumen por categoría y distancia");
             println("5) Resumen de todos los eventos");
             println("6) Chat General");
             println("7) Mensajería Directa");
@@ -313,7 +330,7 @@ public class Main {
 
     /**
      * Crea una inscripción para un corredor (crea al corredor “en caliente” si no existe),
-     * valida estado del evento y unicidad de dorsal.
+     * valida estado del evento, unicidad de dorsal y (nuevo) rango de edad vs categoría seleccionada.
      *
      * @param admin administrador actual.
      */
@@ -327,6 +344,30 @@ public class Main {
             return;
         }
 
+        // ==== Seleccionar categoría del evento y validar luego por edad ====
+        List<Categoria> categoriasEv;
+        try {
+            categoriasEv = ev.getCategorias(); // ajusta el nombre si tu Evento expone otro getter
+        } catch (Throwable t) {
+            categoriasEv = null;
+        }
+        if (categoriasEv == null || categoriasEv.isEmpty()) {
+            println("El evento no tiene categorías configuradas.");
+            return;
+        }
+        println("Categorías del evento:");
+        for (int i = 0; i < categoriasEv.size(); i++) {
+            Categoria c = categoriasEv.get(i);
+            println("  " + (i + 1) + ") " + c.getNombre() + " (" + c.getEdadMin() + "-" + c.getEdadMax() + ")");
+        }
+        int idxCat = leerEntero("Elige categoría [1-" + categoriasEv.size() + "]: ") - 1;
+        if (idxCat < 0 || idxCat >= categoriasEv.size()) {
+            println("Selección inválida.");
+            return;
+        }
+        Categoria catSel = categoriasEv.get(idxCat);
+
+        // ==== Buscar/crear corredor ====
         int ced = leerEntero("Cédula del corredor: ");
         Usuario u = USUARIOS.get(ced);
         Corredor cor;
@@ -338,6 +379,24 @@ public class Main {
             cor = new Corredor(ced, nombre, tel, correo);
             USUARIOS.put(ced, cor);
             println("Corredor creado.");
+
+            // >>> Edad y contacto de emergencia
+            byte edad = leerByteRango("Edad: ", (byte) 0, (byte) 127, SC);
+            cor.setEdad(edad);
+
+            System.out.print("Nombre del contacto de emergencia: ");
+            String nombreCE = SC.nextLine().trim();
+            cor.setNombreContactoEmergencia(nombreCE.isEmpty() ? null : nombreCE);
+
+            System.out.print("Parentesco del contacto de emergencia: ");
+            String parentescoCE = SC.nextLine().trim();
+            cor.setParentescoContactoEmergencia(parentescoCE.isEmpty() ? null : parentescoCE);
+
+            System.out.print("Teléfono del contacto de emergencia: ");
+            String telCE = SC.nextLine().trim();
+            cor.setTelefonoContactoEmergencia(telCE.isEmpty() ? null : telCE);
+            // <<< END
+
         } else if (u instanceof Corredor) {
             cor = (Corredor) u;
         } else {
@@ -345,6 +404,13 @@ public class Main {
             return;
         }
 
+        // ==== Validación de edad vs categoría seleccionada ====
+        if (!cor.puedeInscribirseEn(catSel)) {
+            println("✋ No es posible inscribirse: la edad del corredor no pertenece al rango de la categoría seleccionada.");
+            return;
+        }
+
+        // ==== Distancia y talla ====
         mostrarDistancias();
         int dOpt = leerEntero("Distancia (1..4): ");
         Inscripcion.Distancia dist = switch (dOpt) {
@@ -372,6 +438,7 @@ public class Main {
         int insId = SEQ_INSCRIPCION.getAndIncrement();
 
         try {
+            // Tu Admin crea la inscripción (no pasa categoría). La validación ya se hizo antes.
             Inscripcion ins = admin.crearInscripcionParaCorredor(insId, cor, ev, dist, talla, dorsal);
             println("Inscripción creada: " + ins);
         } catch (Exception ex) {
@@ -397,8 +464,8 @@ public class Main {
         if (target == null) { println("No existe esa inscripción."); return; }
 
         println("Estado actual: " + target.getEstado());
-        println("1) Confirmar pago (PENDIENTE a PAGADO)");
-        println("2) Confirmar inscripción (PAGADO a CONFIRMADO)");
+        println("1) Confirmar pago (PENDIENTE→PAGADO)");
+        println("2) Confirmar inscripción (PAGADO→CONFIRMADO)");
         int o = leerEntero("Opción: ");
         try {
             if (o == 1) {
@@ -421,55 +488,48 @@ public class Main {
      *
      * @param admin administrador actual.
      */
-    /**
- * Registra un tiempo para una inscripción y lo almacena en memoria bajo {@code TIEMPOS_POR_EVENTO}.
- * <p><b>Cambio solicitado:</b> ahora solo pide el tiempo y posiciona general/categoría en 0.</p>
- *
- * @param admin administrador actual.
- */
-private static void accionRegistrarTiempo(Administrador admin) {
-    titulo("Registrar tiempo");
-    Evento ev = seleccionarEvento();
-    if (ev == null || ev.getInscripciones().isEmpty()) {
-        println("No hay inscripciones en este evento.");
-        return;
+    private static void accionRegistrarTiempo(Administrador admin) {
+        titulo("Registrar tiempo");
+        Evento ev = seleccionarEvento();
+        if (ev == null || ev.getInscripciones().isEmpty()) {
+            println("No hay inscripciones en este evento.");
+            return;
+        }
+
+        // ✅ Validación: no permitir registrar si el evento está CERRADO
+        if (ev.getEstado() == Evento.EstadoEvento.CERRADO) {
+            println("No se pueden registrar tiempos: el evento está CERRADO.");
+            return;
+        }
+
+        listarInscripciones(ev);
+        int idIns = leerEntero("ID de inscripción: ");
+        Inscripcion ins = ev.getInscripciones().stream()
+                .filter(i -> i.getId() == idIns)
+                .findFirst().orElse(null);
+        if (ins == null) { println("No existe esa inscripción."); return; }
+
+        // ✅ Validación: solo inscripciones CONFIRMADAS
+        if (ins.getEstado() != Inscripcion.Estado.CONFIRMADO) {
+            println("Solo se pueden registrar tiempos para inscripciones en estado CONFIRMADO.");
+            return;
+        }
+
+        double tiempoSeg = leerDouble("Tiempo (segundos ≥ 0): ");
+
+        try {
+            // Posiciones en 0 como acordado
+            int posGen = 0;
+            int posCat = 0;
+            Tiempo t = admin.registrarTiempoParaInscripcion(ins, tiempoSeg, posGen, posCat);
+            TIEMPOS_POR_EVENTO
+                    .computeIfAbsent(ev.getId(), k -> new HashMap<>())
+                    .put(ins.getId(), t);
+            println("Tiempo registrado y guardado: " + t);
+        } catch (Exception ex) {
+            println("Error: " + ex.getMessage());
+        }
     }
-
-    // ✅ Nueva validación: no permitir registrar si el evento está CERRADO
-    if (ev.getEstado() == Evento.EstadoEvento.CERRADO) {
-        println("No se pueden registrar tiempos: el evento está CERRADO.");
-        return;
-    }
-
-    listarInscripciones(ev);
-    int idIns = leerEntero("ID de inscripción: ");
-    Inscripcion ins = ev.getInscripciones().stream()
-            .filter(i -> i.getId() == idIns)
-            .findFirst().orElse(null);
-    if (ins == null) { println("No existe esa inscripción."); return; }
-
-    // ✅ Nueva validación: solo inscripciones CONFIRMADAS
-    if (ins.getEstado() != Inscripcion.Estado.CONFIRMADO) {
-        println("Solo se pueden registrar tiempos para inscripciones en estado CONFIRMADO.");
-        return;
-    }
-
-    double tiempoSeg = leerDouble("Tiempo (segundos mayor a 0): ");
-
-    try {
-        // Posiciones en 0 como acordado
-        int posGen = 0;
-        int posCat = 0;
-        Tiempo t = admin.registrarTiempoParaInscripcion(ins, tiempoSeg, posGen, posCat);
-        TIEMPOS_POR_EVENTO
-                .computeIfAbsent(ev.getId(), k -> new HashMap<>())
-                .put(ins.getId(), t);
-        println("Tiempo registrado y guardado: " + t);
-    } catch (Exception ex) {
-        println("Error: " + ex.getMessage());
-    }
-}
-
 
     /**
      * Muestra en consola las inscripciones del corredor actual.
@@ -489,19 +549,14 @@ private static void accionRegistrarTiempo(Administrador admin) {
     }
 
     // =====================================================================================
-    // Resúmenes 
+    // Resúmenes
     // =====================================================================================
     /**
- * Resumen combinado: junta TIEMPOS + DISTANCIAS (sin filtros).
- * Muestra una tabla por cada distancia con (# participantes, mejor, promedio, peor)
- * y un bloque GLOBAL con los mismos agregados.
- */
-/**
- * Vista GENERAL de todos los tiempos registrados en TODOS los eventos.
- * No pide filtros ni top N. Muestra una tabla única (Pos, Evento, Corredor, Dorsal, Distancia, Tiempo)
- * ordenada por mejor tiempo, y al final estadísticas globales.
- */
-private static void accionResumenGeneralTiempoYDistancia() {
+     * Resumen combinado: junta TIEMPOS + DISTANCIAS (sin filtros).
+     * Muestra una tabla por cada distancia con (# participantes, mejor, promedio, peor)
+     * y un bloque GLOBAL con los mismos agregados.
+     */
+    private static void accionResumenGeneralTiempoYDistancia() {
     titulo("Resumen general de tiempos (TODOS los eventos)");
 
     if (EVENTOS.isEmpty()) {
@@ -593,8 +648,8 @@ private static void accionResumenGeneralTiempoYDistancia() {
     println("Promedio:                 " + formatearSegundos(promedio));
     println("Peor:                     " + formatearSegundos(peor));
     println("------------------------------------------------------------------------------------------");
-}
-
+    }
+ 
 
     /**
      * Muestra el Top N (por defecto 10) de mejores tiempos de un evento.
@@ -854,6 +909,7 @@ private static void accionResumenGeneralTiempoYDistancia() {
             println("El mensaje no puede estar vacío.");
         } else {
             try {
+                // Mantengo tu flujo original.
                 CHAT_GENERAL.enviarMensaje(usuarioActual, texto);
                 println("Mensaje enviado.");
             } catch (Exception ex) {
@@ -1066,7 +1122,8 @@ private static void accionResumenGeneralTiempoYDistancia() {
             }
         }
     }
-        /**
+
+    /**
      * Lee una línea obligatoria (no vacía). Repite hasta que haya texto.
      *
      * @param prompt mensaje de prompt.
@@ -1082,6 +1139,31 @@ private static void accionResumenGeneralTiempoYDistancia() {
         }
     }
 
+    /**
+     * Lee un byte en un rango dado (incluye min y max).
+     *
+     * @param prompt mensaje a mostrar.
+     * @param min    valor mínimo permitido.
+     * @param max    valor máximo permitido.
+     * @param sc     scanner a usar.
+     * @return byte leído en rango.
+     */
+    private static byte leerByteRango(String prompt, byte min, byte max, java.util.Scanner sc) {
+        while (true) {
+            System.out.print(prompt);
+            String line = sc.nextLine();
+            try {
+                int val = Integer.parseInt(line.trim());
+                if (val < min || val > max) {
+                    System.out.println("Valor fuera de rango (" + min + "–" + max + "). Intente de nuevo.");
+                    continue;
+                }
+                return (byte) val;
+            } catch (NumberFormatException ex) {
+                System.out.println("Ingrese un número válido.");
+            }
+        }
+    }
 
     /**
      * Imprime un título seccionado.
